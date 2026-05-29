@@ -1,0 +1,754 @@
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../admissions/models/application_change_model.dart';
+import '../../admissions/models/application_model.dart';
+import '../../admissions/providers/application_provider.dart';
+import '../providers/inbox_provider.dart';
+
+class InboxPage extends ConsumerWidget {
+  const InboxPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pendingApps = ref.watch(pendingApplicationsProvider);
+    final pendingChanges = ref.watch(pendingChangesProvider);
+    final totalPending = ref.watch(totalPendingProvider);
+    final courseMap = ref.watch(courseNameMapProvider);
+
+    return Scaffold(
+      backgroundColor: AppColors.bgMain,
+      body: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(pendingApplicationsProvider);
+            ref.invalidate(pendingChangesProvider);
+          },
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  child: Row(
+                    children: [
+                      Text('approvals'.tr(),
+                          style: AppTextStyles.displaySm),
+                      if (totalPending > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.danger,
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusFull),
+                          ),
+                          child: Text('$totalPending',
+                              style: AppTextStyles.bodySm.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              // New Applications
+              ...pendingApps.when(
+                data: (apps) => apps.isEmpty
+                    ? <Widget>[]
+                    : [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                            child: Row(
+                              children: [
+                                Icon(Icons.person_add_rounded,
+                                    color: AppColors.primary, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${'newApplications'.tr()} (${apps.length})',
+                                  style: AppTextStyles.bodyBoldSm
+                                      .copyWith(color: AppColors.primary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SliverPadding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 20),
+                          sliver: SliverList.separated(
+                            itemCount: apps.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (_, i) => _ApplicationCard(
+                              app: apps[i],
+                              courseMap: courseMap,
+                            ),
+                          ),
+                        ),
+                      ],
+                loading: () => [
+                  const SliverToBoxAdapter(
+                    child: Center(
+                        child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: CircularProgressIndicator(),
+                    )),
+                  ),
+                ],
+                error: (e, _) => [
+                  SliverToBoxAdapter(
+                    child: Center(
+                        child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Text('$e',
+                          style: AppTextStyles.bodySm
+                              .copyWith(color: AppColors.danger)),
+                    )),
+                  ),
+                ],
+              ),
+
+              // Pending Changes
+              ...pendingChanges.when(
+                data: (changes) => changes.isEmpty
+                    ? <Widget>[]
+                    : [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                            child: Row(
+                              children: [
+                                Icon(Icons.sync_rounded,
+                                    color: AppColors.primary, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${'renewals'.tr()} & ${'courseChanges'.tr()} (${changes.length})',
+                                  style: AppTextStyles.bodyBoldSm
+                                      .copyWith(color: AppColors.primary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SliverPadding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 20),
+                          sliver: SliverList.separated(
+                            itemCount: changes.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (_, i) => _ChangeCard(
+                              change: changes[i],
+                              courseMap: courseMap,
+                            ),
+                          ),
+                        ),
+                      ],
+                loading: () => const [],
+                error: (_, _) => const [],
+              ),
+
+              // Empty state
+              if (totalPending == 0 &&
+                  !pendingApps.isLoading &&
+                  !pendingChanges.isLoading)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.checklist_rounded,
+                            size: 64, color: AppColors.primaryLight),
+                        const SizedBox(height: 16),
+                        Text('allCaughtUpApprovals'.tr(),
+                            style: AppTextStyles.bodySemiBoldBase
+                                .copyWith(color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            ],
+          ),
+        ),
+    );
+  }
+}
+
+class _ApplicationCard extends ConsumerWidget {
+  const _ApplicationCard({required this.app, required this.courseMap});
+  final Application app;
+  final Map<String, String> courseMap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppColors.borderPurple),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: AppColors.primary,
+                      child: Text(app.initial,
+                          style: AppTextStyles.bodyBoldSm
+                              .copyWith(color: Colors.white)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(app.displayName,
+                              style: AppTextStyles.bodyBoldSm),
+                          if (app.parentPhone != null)
+                            Text(app.parentPhone!,
+                                style: AppTextStyles.bodyXs
+                                    .copyWith(color: AppColors.textMuted)),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.successLight,
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusFull),
+                      ),
+                      child: Text('newStudentBadge'.tr(),
+                          style: AppTextStyles.bodyXs.copyWith(
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Courses
+                ...app.courses.entries.map((entry) {
+                  final courseName = courseMap[entry.key] ?? entry.key;
+                  final hours = app.courseLimits[entry.key] ?? 0;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgMain,
+                      borderRadius:
+                          BorderRadius.circular(AppTheme.radiusSm),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(courseName,
+                              style: AppTextStyles.bodySemiBoldSm
+                                  .copyWith(color: AppColors.primary)),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgSurface,
+                            borderRadius: BorderRadius.circular(
+                                AppTheme.radiusFull),
+                          ),
+                          child: Text('$hours hrs',
+                              style: AppTextStyles.bodyXs.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+
+                // Receipts
+                if (app.paymentReceiptUrls.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SizedBox(
+                      height: 64,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: app.paymentReceiptUrls.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(width: 8),
+                        itemBuilder: (_, i) => Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColors.border),
+                            borderRadius: BorderRadius.circular(
+                                AppTheme.radiusSm),
+                            color: AppColors.bgMain,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                                AppTheme.radiusSm),
+                            child: Image.network(
+                              app.paymentReceiptUrls[i],
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => const Icon(
+                                  Icons.description_rounded,
+                                  color: AppColors.textMuted),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 8),
+                Text(
+                  'submittedDate'.tr(namedArgs: {
+                    'date': _formatDate(app.createdAt),
+                  }),
+                  style: AppTextStyles.bodyXs
+                      .copyWith(color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+
+          // Action buttons
+          Container(
+            decoration: BoxDecoration(
+              border:
+                  Border(top: BorderSide(color: AppColors.borderLight)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () => _confirmAction(
+                      context,
+                      ref,
+                      message: 'approveConfirm'.tr(namedArgs: {'count': '1'}),
+                      action: () async {
+                        await ref
+                            .read(applicationRepositoryProvider)
+                            .approveApplications([app.id]);
+                        ref.invalidate(pendingApplicationsProvider);
+                        ref.invalidate(pendingReviewCountProvider);
+                      },
+                    ),
+                    icon: const Icon(Icons.check_rounded,
+                        color: AppColors.success),
+                    label: Text('approve'.tr(),
+                        style: AppTextStyles.bodyBoldSm
+                            .copyWith(color: AppColors.success)),
+                    style: TextButton.styleFrom(
+                        minimumSize:
+                            const Size(0, AppTheme.touchComfortable)),
+                  ),
+                ),
+                Container(width: 1, height: 32, color: AppColors.borderLight),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () => _confirmAction(
+                      context,
+                      ref,
+                      message: 'rejectConfirm'.tr(namedArgs: {'count': '1'}),
+                      action: () async {
+                        await ref
+                            .read(applicationRepositoryProvider)
+                            .rejectApplications([app.id]);
+                        ref.invalidate(pendingApplicationsProvider);
+                        ref.invalidate(pendingReviewCountProvider);
+                      },
+                    ),
+                    icon: const Icon(Icons.close_rounded,
+                        color: AppColors.danger),
+                    label: Text('reject'.tr(),
+                        style: AppTextStyles.bodyBoldSm
+                            .copyWith(color: AppColors.danger)),
+                    style: TextButton.styleFrom(
+                        minimumSize:
+                            const Size(0, AppTheme.touchComfortable)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChangeCard extends ConsumerWidget {
+  const _ChangeCard({required this.change, required this.courseMap});
+  final ApplicationChange change;
+  final Map<String, String> courseMap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final studentNames =
+        ref.watch(studentNameMapProvider).valueOrNull ?? {};
+    final studentName = change.displayName.isNotEmpty
+        ? change.displayName
+        : (studentNames[change.studentId] ?? 'Unknown Student');
+
+    final typeConfig = _getTypeConfig(change.type);
+    final receipts = change.allReceipts;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppColors.borderPurple),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: typeConfig.bg,
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusSm),
+                      ),
+                      child: Icon(typeConfig.icon,
+                          size: 20, color: typeConfig.color),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(studentName,
+                              style: AppTextStyles.bodyBoldSm),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: typeConfig.bg,
+                              borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusFull),
+                            ),
+                            child: Text(typeConfig.label,
+                                style: AppTextStyles.bodyXs.copyWith(
+                                    color: typeConfig.color,
+                                    fontWeight: FontWeight.w700)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Change details
+                ..._buildChangeDetails(),
+
+                // Receipts
+                if (receipts.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SizedBox(
+                      height: 64,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: receipts.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(width: 8),
+                        itemBuilder: (_, i) => Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColors.border),
+                            borderRadius: BorderRadius.circular(
+                                AppTheme.radiusSm),
+                            color: AppColors.bgMain,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                                AppTheme.radiusSm),
+                            child: Image.network(
+                              receipts[i],
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => const Icon(
+                                  Icons.description_rounded,
+                                  color: AppColors.textMuted),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (receipts.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningLight,
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusSm),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.photo_outlined,
+                              size: 16, color: AppColors.warning),
+                          const SizedBox(width: 4),
+                          Text('noReceiptAttached'.tr(),
+                              style: AppTextStyles.bodyXs
+                                  .copyWith(color: AppColors.warning)),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 8),
+                Text(
+                  'submittedDate'.tr(namedArgs: {
+                    'date': _formatDate(change.createdAt),
+                  }),
+                  style: AppTextStyles.bodyXs
+                      .copyWith(color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+
+          // Action buttons
+          Container(
+            decoration: BoxDecoration(
+              border:
+                  Border(top: BorderSide(color: AppColors.borderLight)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () => _confirmAction(
+                      context,
+                      ref,
+                      message: 'approveConfirm'.tr(namedArgs: {'count': '1'}),
+                      action: () async {
+                        await ref
+                            .read(applicationRepositoryProvider)
+                            .approveChanges([change.id]);
+                        ref.invalidate(pendingChangesProvider);
+                        ref.invalidate(pendingReviewCountProvider);
+                      },
+                    ),
+                    icon: const Icon(Icons.check_rounded,
+                        color: AppColors.success),
+                    label: Text('approve'.tr(),
+                        style: AppTextStyles.bodyBoldSm
+                            .copyWith(color: AppColors.success)),
+                    style: TextButton.styleFrom(
+                        minimumSize:
+                            const Size(0, AppTheme.touchComfortable)),
+                  ),
+                ),
+                Container(width: 1, height: 32, color: AppColors.borderLight),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () => _confirmAction(
+                      context,
+                      ref,
+                      message: 'rejectConfirm'.tr(namedArgs: {'count': '1'}),
+                      action: () async {
+                        await ref
+                            .read(applicationRepositoryProvider)
+                            .rejectChanges([change.id]);
+                        ref.invalidate(pendingChangesProvider);
+                        ref.invalidate(pendingReviewCountProvider);
+                      },
+                    ),
+                    icon: const Icon(Icons.close_rounded,
+                        color: AppColors.danger),
+                    label: Text('reject'.tr(),
+                        style: AppTextStyles.bodyBoldSm
+                            .copyWith(color: AppColors.danger)),
+                    style: TextButton.styleFrom(
+                        minimumSize:
+                            const Size(0, AppTheme.touchComfortable)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildChangeDetails() {
+    final details = <Widget>[];
+    final changes = change.changes;
+
+    if (change.type == 'renewal' && changes['course_limits'] is Map) {
+      final limits = changes['course_limits'] as Map;
+      for (final entry in limits.entries) {
+        final cid = entry.key as String;
+        final hrs = entry.value;
+        details.add(
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.bgMain,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(courseMap[cid] ?? cid,
+                      style: AppTextStyles.bodySemiBoldSm
+                          .copyWith(color: AppColors.primary)),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface,
+                    borderRadius:
+                        BorderRadius.circular(AppTheme.radiusFull),
+                  ),
+                  child: Text('$hrs hrs',
+                      style: AppTextStyles.bodyXs.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+    return details;
+  }
+
+  _TypeConfig _getTypeConfig(String type) {
+    switch (type) {
+      case 'renewal':
+        return _TypeConfig(
+          icon: Icons.sync_rounded,
+          label: 'renewalType'.tr(),
+          bg: AppColors.warningLight,
+          color: AppColors.warning,
+        );
+      case 'cancel':
+        return _TypeConfig(
+          icon: Icons.close_rounded,
+          label: 'cancellationType'.tr(),
+          bg: AppColors.dangerLight,
+          color: AppColors.danger,
+        );
+      default:
+        return _TypeConfig(
+          icon: Icons.edit_rounded,
+          label: 'addCourseType'.tr(),
+          bg: AppColors.infoLight,
+          color: AppColors.info,
+        );
+    }
+  }
+}
+
+class _TypeConfig {
+  final IconData icon;
+  final String label;
+  final Color bg;
+  final Color color;
+  const _TypeConfig(
+      {required this.icon,
+      required this.label,
+      required this.bg,
+      required this.color});
+}
+
+void _confirmAction(
+  BuildContext context,
+  WidgetRef ref, {
+  required String message,
+  required Future<void> Function() action,
+}) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text('confirm'.tr(), style: AppTextStyles.bodyBoldBase),
+      content: Text(message, style: AppTextStyles.bodySm),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text('cancel'.tr(),
+              style: AppTextStyles.bodyBoldSm
+                  .copyWith(color: AppColors.textSecondary)),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            Navigator.pop(ctx);
+            await action();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('approved'.tr())),
+              );
+            }
+          },
+          style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary),
+          child: Text('confirm'.tr(),
+              style:
+                  AppTextStyles.bodyBoldSm.copyWith(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
+}
+
+String _formatDate(String iso) {
+  try {
+    final d = DateTime.parse(iso);
+    return '${d.day}/${d.month}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  } catch (_) {
+    return iso;
+  }
+}
