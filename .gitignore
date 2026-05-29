@@ -1,7 +1,6 @@
-# Environment (keep .env tracked — it only contains public Supabase anon key)
-# .env
-.env.local
-.env.*.local
+# Environment
+.env
+.env.*
 
 # Miscellaneous
 *.class

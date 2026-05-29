@@ -1,4 +1,6 @@
 {
+  "buildCommand": "echo \"SUPABASE_URL=$SUPABASE_URL\nSUPABASE_ANON_KEY=$SUPABASE_ANON_KEY\" > .env && if cd flutter; then git pull && cd ..; else git clone https://github.com/flutter/flutter.git; fi && flutter/bin/flutter config --enable-web && flutter/bin/flutter build web --release",
+  "outputDirectory": "build/web",
   "routes": [
     { "src": "/(.*)", "dest": "/index.html" }
   ]
