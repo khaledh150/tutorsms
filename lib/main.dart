@@ -78,15 +78,20 @@ class WonderKidsApp extends ConsumerWidget {
 
     return ColoredBox(
       color: AppColors.bgMain,
-      child: MaterialApp.router(
-        key: ValueKey(context.locale),
-        title: 'Wonder Kids',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        routerConfig: router,
-        localizationsDelegates: context.localizationDelegates,
-        supportedLocales: context.supportedLocales,
-        locale: context.locale,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: MaterialApp.router(
+            key: ValueKey(context.locale),
+            title: 'Wonder Kids',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            routerConfig: router,
+            localizationsDelegates: context.localizationDelegates,
+            supportedLocales: context.supportedLocales,
+            locale: context.locale,
+          ),
+        ),
       ),
     );
   }
