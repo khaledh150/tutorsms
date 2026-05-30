@@ -5,12 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/supabase_client.dart';
+import 'school_detail_modal.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/school_model.dart';
 import '../providers/super_admin_provider.dart';
+import '../repositories/super_admin_repository.dart';
 
 const _chartColors = [
   Color(0xFF6C5CE7),
@@ -32,33 +34,9 @@ class SuperAdminDashboard extends ConsumerStatefulWidget {
 class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
   String _search = '';
   String _statusFilter = 'all';
-  bool _showCreate = false;
-
-  // Create form
-  final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
-  final _notesCtrl = TextEditingController();
-  final _adminNameCtrl = TextEditingController();
-  final _adminEmailCtrl = TextEditingController();
-  final _adminPasswordCtrl = TextEditingController();
-  String _plan = 'basic';
-  int _maxStudents = 50;
-  int _maxStaff = 5;
-  String? _trialDuration;
-  bool _creating = false;
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _emailCtrl.dispose();
-    _phoneCtrl.dispose();
-    _addressCtrl.dispose();
-    _notesCtrl.dispose();
-    _adminNameCtrl.dispose();
-    _adminEmailCtrl.dispose();
-    _adminPasswordCtrl.dispose();
     super.dispose();
   }
 
@@ -118,42 +96,41 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
   }
 
   Widget _buildHeader() {
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('superAdminDashboard'.tr(),
-            style: AppTextStyles.displaySm
-                .copyWith(color: AppColors.primary)),
-        const SizedBox(height: 2),
-        Text('superAdminDesc'.tr(),
-            style: AppTextStyles.bodyXs
-                .copyWith(color: AppColors.textMuted)),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _showAccountSettings,
-                icon: const Icon(Icons.settings_rounded, size: 18),
-                label: Text('account'.tr()),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: () => setState(() => _showCreate = true),
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: Text('createSchool'.tr()),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('superAdminDashboard'.tr(),
+                  style: AppTextStyles.displaySm
+                      .copyWith(color: AppColors.primary)),
+              const SizedBox(height: 2),
+              Text('superAdminDesc'.tr(),
+                  style: AppTextStyles.bodyXs
+                      .copyWith(color: AppColors.textMuted)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(
+          onPressed: _showCreateSchoolDialog,
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: Text('createSchool'.tr()),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          ),
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          onPressed: _showAccountSettings,
+          icon: const Icon(Icons.settings_rounded, size: 22, color: AppColors.textMuted),
+          style: IconButton.styleFrom(
+            backgroundColor: AppColors.bgSurface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+          ),
         ),
       ],
     );
@@ -162,62 +139,116 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
   void _showAccountSettings() {
     final user = ref.read(authProvider).valueOrNull;
     final usernameCtrl = TextEditingController(text: user?.username ?? '');
-    final passwordCtrl = TextEditingController();
+    final currentPasswordCtrl = TextEditingController();
+    final newPasswordCtrl = TextEditingController();
     bool saving = false;
+    String? error;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radius2xl)),
           title: Row(
             children: [
               Container(
                 width: 40, height: 40,
-                decoration: BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
-                child: const Icon(Icons.vpn_key_rounded, color: AppColors.primary, size: 20),
+                decoration: const BoxDecoration(color: AppColors.primaryLight, shape: BoxShape.circle),
+                child: const Icon(Icons.settings_rounded, color: AppColors.primary, size: 20),
               ),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('accountSettings'.tr(), style: AppTextStyles.bodyBoldBase),
-                  Text(user?.email ?? '', style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted)),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('accountSettings'.tr(), style: AppTextStyles.bodyBoldBase),
+                    Text(user?.email ?? '', style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted)),
+                  ],
+                ),
               ),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: usernameCtrl, decoration: InputDecoration(labelText: 'username'.tr())),
+              TextField(
+                controller: usernameCtrl,
+                decoration: InputDecoration(
+                  labelText: 'username'.tr(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                ),
+              ),
               const SizedBox(height: 12),
-              TextField(controller: passwordCtrl, obscureText: true, decoration: InputDecoration(labelText: 'newPassword'.tr(), hintText: 'leaveBlankToKeep'.tr())),
+              TextField(
+                controller: currentPasswordCtrl,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'currentPassword'.tr(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: newPasswordCtrl,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'newPassword'.tr(),
+                  hintText: 'leaveBlankToKeep'.tr(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                ),
+              ),
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(error!, style: AppTextStyles.bodyXs.copyWith(color: AppColors.danger)),
+                ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('cancel'.tr())),
-            FilledButton(
-              onPressed: (usernameCtrl.text.isEmpty && passwordCtrl.text.isEmpty) || saving ? null : () async {
-                setDialogState(() => saving = true);
-                try {
-                  // Use RPC for username/password updates
-                  if (usernameCtrl.text.isNotEmpty) {
-                    await supabase.rpc('update_staff_username', params: {'p_user_id': user!.id, 'p_new_username': usernameCtrl.text.trim()});
-                  }
-                  if (passwordCtrl.text.isNotEmpty) {
-                    await supabase.rpc('update_staff_password', params: {'p_user_id': user!.id, 'p_new_password': passwordCtrl.text});
-                  }
-                  if (ctx.mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('accountUpdated'.tr())));
-                  }
-                } catch (e) {
-                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(e.toString())));
-                }
-                setDialogState(() => saving = false);
-              },
-              child: Text(saving ? 'saving'.tr() : 'save'.tr()),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+                    child: Text('cancel'.tr()),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: saving ? null : () async {
+                      if (currentPasswordCtrl.text.isEmpty) {
+                        setDialogState(() => error = 'currentPasswordRequired'.tr());
+                        return;
+                      }
+                      setDialogState(() { saving = true; error = null; });
+                      try {
+                        await supabase.auth.signInWithPassword(
+                          email: user!.email!,
+                          password: currentPasswordCtrl.text,
+                        );
+                        if (usernameCtrl.text.isNotEmpty) {
+                          await supabase.rpc('update_staff_username', params: {'p_user_id': user.id, 'p_new_username': usernameCtrl.text.trim()});
+                        }
+                        if (newPasswordCtrl.text.isNotEmpty) {
+                          await supabase.rpc('update_staff_password', params: {'p_user_id': user.id, 'p_new_password': newPasswordCtrl.text});
+                        }
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text('accountUpdated'.tr()), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating),
+                          );
+                        }
+                      } catch (e) {
+                        setDialogState(() { error = e.toString().contains('Invalid') ? 'invalidPassword'.tr() : e.toString(); saving = false; });
+                      }
+                    },
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.primary, padding: const EdgeInsets.symmetric(vertical: 12)),
+                    child: Text(saving ? 'saving'.tr() : 'save'.tr()),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -547,23 +578,6 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
     );
   }
 
-  Widget _trialChip(String? value, String label) {
-    final selected = _trialDuration == value;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => setState(() {
-        _trialDuration = value;
-        if (value != null) _plan = 'free';
-      }),
-      selectedColor: AppColors.primary,
-      labelStyle: AppTextStyles.bodyXs.copyWith(
-        color: selected ? Colors.white : AppColors.textSecondary,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-
   Widget _buildActivityAndSchools(
     List<SchoolHealth> filtered,
     AsyncValue<List<Map<String, dynamic>>> activityAsync,
@@ -638,7 +652,7 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis),
                               Text(
-                                '${created.length >= 10 ? created.substring(0, 10) : created}'
+                                '${_timeAgo(created)}'
                                 '${schoolName != null ? ' · $schoolName' : ''}',
                                 style: AppTextStyles.bodyXs.copyWith(
                                     color: AppColors.textMuted,
@@ -725,36 +739,18 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
                     _handleStatusChange(school, status),
               )),
 
-        // Create school dialog
-        if (_showCreate) _buildCreateDialog(),
       ],
     );
   }
 
   void _showSchoolDetail(SchoolHealth school) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        maxChildSize: 0.95,
-        builder: (_, scrollCtrl) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(
-                top: Radius.circular(AppTheme.radiusXl)),
-          ),
-          child: _SchoolDetailSheet(
-            school: school,
-            scrollController: scrollCtrl,
-            onImpersonate: () {
-              Navigator.pop(context);
-              _handleImpersonate(school);
-            },
-          ),
-        ),
-      ),
+    showSchoolDetailModal(
+      context,
+      school,
+      onStatusChange: () {
+        ref.read(schoolsProvider.notifier).refresh();
+      },
+      onImpersonate: () => _handleImpersonate(school),
     );
   }
 
@@ -791,6 +787,20 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
     ref.invalidate(authProvider);
 
     if (mounted) context.go('/dashboard');
+  }
+
+  void _showCreateSchoolDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CreateSchoolSheet(
+        onCreated: () {
+          ref.read(schoolsProvider.notifier).refresh();
+          ref.invalidate(recentActivityProvider);
+        },
+      ),
+    );
   }
 
   Future<void> _handleStatusChange(
@@ -895,223 +905,6 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
     final repo = ref.read(superAdminRepositoryProvider);
     await repo.updateSchoolStatus(school.schoolId, status);
     ref.read(schoolsProvider.notifier).refresh();
-  }
-
-  Future<void> _handleCreate() async {
-    if (_nameCtrl.text.isEmpty ||
-        _adminEmailCtrl.text.isEmpty ||
-        _adminPasswordCtrl.text.isEmpty) {
-      return;
-    }
-
-    setState(() => _creating = true);
-    try {
-      final repo = ref.read(superAdminRepositoryProvider);
-      await repo.createSchool(
-        name: _nameCtrl.text,
-        contactEmail:
-            _emailCtrl.text.isEmpty ? null : _emailCtrl.text,
-        contactPhone:
-            _phoneCtrl.text.isEmpty ? null : _phoneCtrl.text,
-        address:
-            _addressCtrl.text.isEmpty ? null : _addressCtrl.text,
-        plan: _plan,
-        maxStudents: _maxStudents,
-        maxStaff: _maxStaff,
-        notes:
-            _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
-        adminEmail: _adminEmailCtrl.text,
-        adminPassword: _adminPasswordCtrl.text,
-        adminName: _adminNameCtrl.text,
-        trialDuration: _trialDuration,
-      );
-      ref.read(schoolsProvider.notifier).refresh();
-      ref.invalidate(recentActivityProvider);
-      setState(() {
-        _showCreate = false;
-        _nameCtrl.clear();
-        _emailCtrl.clear();
-        _phoneCtrl.clear();
-        _addressCtrl.clear();
-        _notesCtrl.clear();
-        _adminNameCtrl.clear();
-        _adminEmailCtrl.clear();
-        _adminPasswordCtrl.clear();
-        _plan = 'basic';
-        _maxStudents = 50;
-        _maxStaff = 5;
-        _trialDuration = null;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.toString())));
-      }
-    } finally {
-      setState(() => _creating = false);
-    }
-  }
-
-  Widget _buildCreateDialog() {
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('createSchool'.tr(),
-                  style: AppTextStyles.bodyBoldBase),
-              IconButton(
-                onPressed: () => setState(() => _showCreate = false),
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _nameCtrl,
-            decoration: InputDecoration(
-                labelText: '${'schoolName'.tr()} *'),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _emailCtrl,
-                  decoration:
-                      InputDecoration(labelText: 'saContactEmail'.tr()),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  controller: _phoneCtrl,
-                  decoration:
-                      InputDecoration(labelText: 'saContactPhone'.tr()),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _addressCtrl,
-            decoration:
-                InputDecoration(labelText: 'saAddress'.tr()),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _plan,
-                  items: ['free', 'basic', 'pro', 'enterprise']
-                      .map((p) => DropdownMenuItem(
-                          value: p,
-                          child: Text(p[0].toUpperCase() + p.substring(1))))
-                      .toList(),
-                  onChanged: (v) => setState(() => _plan = v ?? 'basic'),
-                  decoration: InputDecoration(labelText: 'saPlan'.tr()),
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 80,
-                child: TextFormField(
-                  initialValue: '$_maxStudents',
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: 'saMaxStudents'.tr()),
-                  onChanged: (v) => _maxStudents = int.tryParse(v) ?? 50,
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 80,
-                child: TextFormField(
-                  initialValue: '$_maxStaff',
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: 'saMaxStaff'.tr()),
-                  onChanged: (v) => _maxStaff = int.tryParse(v) ?? 5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _notesCtrl,
-            decoration: InputDecoration(labelText: 'notes'.tr()),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 12),
-          Text('trialPeriod'.tr(), style: AppTextStyles.bodySemiBoldSm),
-          const SizedBox(height: 4),
-          Text('trialPeriodHint'.tr(),
-              style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _trialChip(null, 'noTrial'.tr()),
-              _trialChip('7d', '7 ${'days'.tr()}'),
-              _trialChip('30d', '30 ${'days'.tr()}'),
-              _trialChip('6m', '6 ${'months'.tr()}'),
-              _trialChip('1y', '1 ${'year'.tr()}'),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Divider(color: AppColors.borderLight),
-          const SizedBox(height: 4),
-          Text('createSchoolDesc'.tr(),
-              style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted)),
-          const SizedBox(height: 8),
-          Text('saSchoolOwnerAccount'.tr(),
-              style: AppTextStyles.bodySemiBoldSm),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _adminNameCtrl,
-            decoration: InputDecoration(
-                labelText: '${'schoolAdminName'.tr()} *'),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _adminEmailCtrl,
-            decoration: InputDecoration(
-                labelText: '${'schoolAdminEmail'.tr()} *'),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _adminPasswordCtrl,
-            obscureText: true,
-            decoration: InputDecoration(
-                labelText: '${'schoolAdminPassword'.tr()} *'),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _creating ? null : _handleCreate,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: Text(
-                  _creating ? 'saving'.tr() : 'createSchool'.tr(),
-                  style: AppTextStyles.bodyBoldSm
-                      .copyWith(color: Colors.white)),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Map<String, int> _computeTotals(List<SchoolHealth> schools) {
@@ -1430,159 +1223,228 @@ class _StatusBadge extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// School Detail Sheet
+// Create School Sheet
 // ---------------------------------------------------------------------------
 
-class _SchoolDetailSheet extends StatelessWidget {
-  const _SchoolDetailSheet({
-    required this.school,
-    required this.scrollController,
-    required this.onImpersonate,
-  });
+class _CreateSchoolSheet extends StatefulWidget {
+  const _CreateSchoolSheet({required this.onCreated});
+  final VoidCallback onCreated;
 
-  final SchoolHealth school;
-  final ScrollController scrollController;
-  final VoidCallback onImpersonate;
+  @override
+  State<_CreateSchoolSheet> createState() => _CreateSchoolSheetState();
+}
+
+class _CreateSchoolSheetState extends State<_CreateSchoolSheet> {
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+  final _adminNameCtrl = TextEditingController();
+  final _adminEmailCtrl = TextEditingController();
+  final _adminPasswordCtrl = TextEditingController();
+  String _plan = 'basic';
+  int _maxStudents = 50;
+  int _maxStaff = 5;
+  String? _trialDuration;
+  bool _creating = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
+    _addressCtrl.dispose();
+    _notesCtrl.dispose();
+    _adminNameCtrl.dispose();
+    _adminEmailCtrl.dispose();
+    _adminPasswordCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_nameCtrl.text.trim().isEmpty) {
+      setState(() => _error = 'schoolNameRequired'.tr());
+      return;
+    }
+    if (_adminEmailCtrl.text.trim().isEmpty || _adminPasswordCtrl.text.isEmpty) {
+      setState(() => _error = 'ownerAccountRequired'.tr());
+      return;
+    }
+    setState(() { _creating = true; _error = null; });
+    try {
+      final repo = SuperAdminRepository();
+      await repo.createSchool(
+        name: _nameCtrl.text.trim(),
+        contactEmail: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+        contactPhone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        address: _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
+        plan: _plan,
+        maxStudents: _maxStudents,
+        maxStaff: _maxStaff,
+        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        adminEmail: _adminEmailCtrl.text.trim(),
+        adminPassword: _adminPasswordCtrl.text,
+        adminName: _adminNameCtrl.text.trim(),
+        trialDuration: _trialDuration,
+      );
+      widget.onCreated();
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('schoolCreated'.tr()), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _creating = false; });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      controller: scrollController,
-      padding: const EdgeInsets.all(20),
-      children: [
-        Center(
-          child: Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: AppColors.border,
-              borderRadius: BorderRadius.circular(2),
+    final border = OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd));
+
+    return Container(
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.9),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle + header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+            child: Column(
+              children: [
+                Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16), decoration: BoxDecoration(color: AppColors.borderLight, borderRadius: BorderRadius.circular(2)))),
+                Row(
+                  children: [
+                    Expanded(child: Text('createSchool'.tr(), style: AppTextStyles.displaySm.copyWith(color: AppColors.primary))),
+                    IconButton(icon: const Icon(Icons.close_rounded, size: 22), onPressed: () => Navigator.pop(context)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('createSchoolDesc'.tr(), style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted)),
+              ],
             ),
           ),
-        ),
-        Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius:
-                    BorderRadius.circular(AppTheme.radiusSm),
-              ),
-              child: Center(
-                child: Text(
-                  school.name.isNotEmpty
-                      ? school.name[0].toUpperCase()
-                      : '?',
-                  style: AppTextStyles.bodyBoldBase
-                      .copyWith(color: Colors.white, fontSize: 20),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
+          const Divider(height: 16),
+          // Scrollable form
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(school.name,
-                      style: AppTextStyles.bodyBoldBase),
-                  Row(
-                    children: [
-                      _StatusBadge(status: school.status),
-                      const SizedBox(width: 6),
-                      Text(school.plan,
-                          style: AppTextStyles.bodyXs
-                              .copyWith(color: AppColors.primary)),
-                    ],
+                  // School details
+                  Text('schoolDetails'.tr(), style: AppTextStyles.bodyBoldSm.copyWith(color: AppColors.textSecondary)),
+                  const SizedBox(height: 8),
+                  TextField(controller: _nameCtrl, decoration: InputDecoration(labelText: '${'schoolName'.tr()} *', border: border)),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Expanded(child: TextField(controller: _emailCtrl, decoration: InputDecoration(labelText: 'saContactEmail'.tr(), border: border))),
+                    const SizedBox(width: 8),
+                    Expanded(child: TextField(controller: _phoneCtrl, decoration: InputDecoration(labelText: 'saContactPhone'.tr(), border: border))),
+                  ]),
+                  const SizedBox(height: 10),
+                  TextField(controller: _addressCtrl, decoration: InputDecoration(labelText: 'saAddress'.tr(), border: border)),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _plan,
+                        decoration: InputDecoration(labelText: 'saPlan'.tr(), border: border),
+                        items: ['free', 'basic', 'pro', 'enterprise'].map((p) => DropdownMenuItem(value: p, child: Text(p[0].toUpperCase() + p.substring(1)))).toList(),
+                        onChanged: (v) => setState(() => _plan = v ?? 'basic'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(width: 90, child: TextFormField(initialValue: '$_maxStudents', keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'saMaxStudents'.tr(), border: border), onChanged: (v) => _maxStudents = int.tryParse(v) ?? 50)),
+                    const SizedBox(width: 8),
+                    SizedBox(width: 90, child: TextFormField(initialValue: '$_maxStaff', keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'saMaxStaff'.tr(), border: border), onChanged: (v) => _maxStaff = int.tryParse(v) ?? 5)),
+                  ]),
+                  const SizedBox(height: 10),
+                  TextField(controller: _notesCtrl, maxLines: 2, decoration: InputDecoration(labelText: 'notes'.tr(), border: border)),
+
+                  // Trial period
+                  const SizedBox(height: 16),
+                  Text('trialPeriod'.tr(), style: AppTextStyles.bodyBoldSm.copyWith(color: AppColors.textSecondary)),
+                  const SizedBox(height: 4),
+                  Text('trialPeriodHint'.tr(), style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted)),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    _trialChip(null, 'noTrial'.tr()),
+                    _trialChip('7d', '7 ${'days'.tr()}'),
+                    _trialChip('30d', '30 ${'days'.tr()}'),
+                    _trialChip('6m', '6 ${'months'.tr()}'),
+                    _trialChip('1y', '1 ${'year'.tr()}'),
+                  ]),
+
+                  // Owner account
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Text('saSchoolOwnerAccount'.tr(), style: AppTextStyles.bodyBoldSm.copyWith(color: AppColors.textSecondary)),
+                  const SizedBox(height: 4),
+                  Text('saSchoolOwnerDesc'.tr(), style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted)),
+                  const SizedBox(height: 8),
+                  TextField(controller: _adminNameCtrl, decoration: InputDecoration(labelText: '${'schoolAdminName'.tr()} *', border: border)),
+                  const SizedBox(height: 10),
+                  TextField(controller: _adminEmailCtrl, decoration: InputDecoration(labelText: '${'schoolAdminEmail'.tr()} *', border: border)),
+                  const SizedBox(height: 10),
+                  TextField(controller: _adminPasswordCtrl, obscureText: true, decoration: InputDecoration(labelText: '${'schoolAdminPassword'.tr()} *', border: border, helperText: 'minPasswordLength'.tr())),
+
+                  // Error
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: AppColors.dangerLight, borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                      child: Text(_error!, style: AppTextStyles.bodyXs.copyWith(color: AppColors.danger)),
+                    ),
+                  ],
+
+                  // Submit
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _creating ? null : _submit,
+                      style: FilledButton.styleFrom(backgroundColor: AppColors.primary, padding: const EdgeInsets.symmetric(vertical: 14)),
+                      child: _creating
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text('createSchool'.tr(), style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 20),
-
-        // Stats grid
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _detailStat('students'.tr(), '${school.activeStudents}/${school.totalStudents}'),
-            _detailStat('saTeam'.tr(), '${school.totalTeam}/${school.maxStaff}'),
-            _detailStat('courses'.tr(), '${school.courseCount}'),
-            _detailStat('saCheckins30d'.tr(), '${school.checkins30d}'),
-            _detailStat('saLineMessages'.tr(), '${school.lineMessages30d}'),
-            _detailStat('saSetup'.tr(), '${school.setupPercent}%'),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Contact info
-        if (school.ownerEmail != null || school.contactEmail != null)
-          _infoRow(Icons.email_rounded,
-              school.contactEmail ?? school.ownerEmail ?? ''),
-        if (school.contactPhone != null)
-          _infoRow(Icons.phone_rounded, school.contactPhone!),
-        if (school.address != null)
-          _infoRow(Icons.location_on_rounded, school.address!),
-        if (school.notes != null && school.notes!.isNotEmpty)
-          _infoRow(Icons.note_rounded, school.notes!),
-
-        const SizedBox(height: 20),
-
-        // Impersonate button
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: onImpersonate,
-            icon: const Icon(Icons.visibility_rounded, size: 18),
-            label: Text('saViewAsSchool'.tr()),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.warning,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _detailStat(String label, String value) {
-    return Container(
-      width: 100,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface,
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-      ),
-      child: Column(
-        children: [
-          Text(value,
-              style: AppTextStyles.bodyBoldSm),
-          Text(label,
-              style: AppTextStyles.bodyXs
-                  .copyWith(color: AppColors.textMuted, fontSize: 9),
-              textAlign: TextAlign.center),
         ],
       ),
     );
   }
 
-  Widget _infoRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppColors.textMuted),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(text,
-                style: AppTextStyles.bodySm
-                    .copyWith(color: AppColors.textSecondary)),
-          ),
-        ],
+  Widget _trialChip(String? value, String label) {
+    final selected = _trialDuration == value;
+    return GestureDetector(
+      onTap: () => setState(() {
+        _trialDuration = value;
+        if (value != null) _plan = 'free';
+      }),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.bgSurface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          border: Border.all(color: selected ? AppColors.primary : AppColors.borderLight),
+        ),
+        child: Text(label, style: AppTextStyles.bodyXs.copyWith(color: selected ? Colors.white : AppColors.textSecondary, fontWeight: FontWeight.w700)),
       ),
     );
   }
