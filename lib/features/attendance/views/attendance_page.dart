@@ -60,22 +60,30 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: groupsAsync.when(
-                loading: () => const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2)),
-                error: (e, _) => Center(
-                  child: Text('Error: $e',
-                      style: AppTextStyles.bodySm
-                          .copyWith(color: AppColors.danger)),
-                ),
-                data: (groups) {
-                  final q = _search.trim().toLowerCase();
-                  if (q.isNotEmpty) {
-                    return _buildStudentResults(groups, q, checkedInSet);
-                  }
-                  if (groups.isEmpty) return _buildEmpty();
-                  return _buildGrid(groups, checkedInSet);
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  ref.invalidate(courseGroupsProvider);
+                  ref.invalidate(checkedInSetProvider);
                 },
+                child: groupsAsync.when(
+                  loading: () => const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                  error: (e, _) => ListView(children: [
+                    Center(
+                      child: Text('Error: $e',
+                          style: AppTextStyles.bodySm
+                              .copyWith(color: AppColors.danger)),
+                    ),
+                  ]),
+                  data: (groups) {
+                    final q = _search.trim().toLowerCase();
+                    if (q.isNotEmpty) {
+                      return _buildStudentResults(groups, q, checkedInSet);
+                    }
+                    if (groups.isEmpty) return ListView(children: [_buildEmpty()]);
+                    return _buildGrid(groups, checkedInSet);
+                  },
+                ),
               ),
             ),
           ],

@@ -301,24 +301,28 @@ class _ApplicationCard extends ConsumerWidget {
                         itemCount: app.paymentReceiptUrls.length,
                         separatorBuilder: (_, _) =>
                             const SizedBox(width: 8),
-                        itemBuilder: (_, i) => Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.border),
-                            borderRadius: BorderRadius.circular(
-                                AppTheme.radiusSm),
-                            color: AppColors.bgMain,
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                                AppTheme.radiusSm),
-                            child: Image.network(
-                              app.paymentReceiptUrls[i],
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => const Icon(
-                                  Icons.description_rounded,
-                                  color: AppColors.textMuted),
+                        itemBuilder: (_, i) => GestureDetector(
+                          onTap: () => _showReceiptViewer(
+                              context, app.paymentReceiptUrls, i),
+                          child: Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColors.border),
+                              borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusSm),
+                              color: AppColors.bgMain,
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusSm),
+                              child: Image.network(
+                                app.paymentReceiptUrls[i],
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => const Icon(
+                                    Icons.description_rounded,
+                                    color: AppColors.textMuted),
+                              ),
                             ),
                           ),
                         ),
@@ -492,24 +496,28 @@ class _ChangeCard extends ConsumerWidget {
                         itemCount: receipts.length,
                         separatorBuilder: (_, _) =>
                             const SizedBox(width: 8),
-                        itemBuilder: (_, i) => Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.border),
-                            borderRadius: BorderRadius.circular(
-                                AppTheme.radiusSm),
-                            color: AppColors.bgMain,
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                                AppTheme.radiusSm),
-                            child: Image.network(
-                              receipts[i],
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => const Icon(
-                                  Icons.description_rounded,
-                                  color: AppColors.textMuted),
+                        itemBuilder: (_, i) => GestureDetector(
+                          onTap: () => _showReceiptViewer(
+                              context, receipts, i),
+                          child: Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColors.border),
+                              borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusSm),
+                              color: AppColors.bgMain,
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusSm),
+                              child: Image.network(
+                                receipts[i],
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => const Icon(
+                                    Icons.description_rounded,
+                                    color: AppColors.textMuted),
+                              ),
                             ),
                           ),
                         ),
@@ -751,4 +759,60 @@ String _formatDate(String iso) {
   } catch (_) {
     return iso;
   }
+}
+
+void _showReceiptViewer(BuildContext context, List<String> urls, int initial) {
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      final controller = PageController(initialPage: initial);
+      return Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: controller,
+              itemCount: urls.length,
+              itemBuilder: (_, i) => InteractiveViewer(
+                child: Center(
+                  child: Image.network(
+                    urls[i],
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Icon(
+                      Icons.broken_image_rounded,
+                      color: Colors.white54,
+                      size: 64,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.paddingOf(ctx).top + 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded,
+                    color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ),
+            if (urls.length > 1)
+              Positioned(
+                bottom: MediaQuery.paddingOf(ctx).bottom + 16,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Text(
+                    '${initial + 1} / ${urls.length}',
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 14),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+  );
 }

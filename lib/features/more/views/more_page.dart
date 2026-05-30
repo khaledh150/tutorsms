@@ -184,16 +184,37 @@ class MorePage extends ConsumerWidget {
                       title: Text('confirm'.tr()),
                       content: Text('confirmLogout'.tr()),
                       actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: Text('cancel'.tr()),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.danger),
-                          child: Text('logout'.tr(),
-                              style: const TextStyle(color: Colors.white)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                                  ),
+                                ),
+                                child: Text('cancel'.tr()),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.danger,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                                  ),
+                                ),
+                                child: Text('logout'.tr(),
+                                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

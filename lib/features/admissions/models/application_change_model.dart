@@ -40,13 +40,13 @@ class ApplicationChange {
   }
 
   List<String> get allReceipts {
-    final r = <String>[];
+    final r = <String>{};
     r.addAll(receiptUrls);
     final changeReceipts = changes['receipts'];
     if (changeReceipts is List) {
       r.addAll(changeReceipts.cast<String>());
     }
-    return r;
+    return r.toList();
   }
 
   factory ApplicationChange.fromJson(Map<String, dynamic> json) {

@@ -86,7 +86,15 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
           final history = historyAsync.valueOrNull ?? [];
           final pendingChanges = pendingAsync.valueOrNull ?? [];
 
-          return CustomScrollView(
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(studentProvider(widget.studentId));
+              ref.invalidate(studentEnrollmentsProvider(widget.studentId));
+              ref.invalidate(studentAttendanceProvider(widget.studentId));
+              ref.invalidate(enrollmentHistoryProvider(widget.studentId));
+              ref.invalidate(pendingChangesForStudentProvider(widget.studentId));
+            },
+            child: CustomScrollView(
             slivers: [
               SliverAppBar(
                 expandedHeight: 0,
@@ -129,6 +137,7 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
                 ),
               ),
             ],
+          ),
           );
         },
       ),
@@ -745,51 +754,6 @@ class _EnrollmentCardState extends ConsumerState<_EnrollmentCard> {
                                   .copyWith(color: AppColors.textMuted),
                             ),
                           ),
-                        if (widget.pendingReq != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.warningLight,
-                                    borderRadius: BorderRadius.circular(
-                                        AppTheme.radiusFull),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.schedule_rounded,
-                                          size: 12, color: AppColors.warning),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '${widget.pendingReq!.type == 'renewal' ? 'renewalPending'.tr() : 'addHoursPending'.tr()}'
-                                        ' (+${_pendingHours(widget.pendingReq!)} hrs)',
-                                        style: AppTextStyles.bodyXs.copyWith(
-                                          color: AppColors.warning,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                GestureDetector(
-                                  onTap: () => _cancelPendingRequest(
-                                      widget.pendingReq!.id),
-                                  child: Text('cancel'.tr(),
-                                      style: AppTextStyles.bodyXs.copyWith(
-                                        color: AppColors.danger,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 10,
-                                      )),
-                                ),
-                              ],
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -847,6 +811,57 @@ class _EnrollmentCardState extends ConsumerState<_EnrollmentCard> {
               ),
             ),
           ),
+          if (widget.pendingReq != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningLight,
+                        borderRadius: BorderRadius.circular(
+                            AppTheme.radiusFull),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.schedule_rounded,
+                              size: 12, color: AppColors.warning),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              '${widget.pendingReq!.type == 'renewal' ? 'renewalPending'.tr() : 'addHoursPending'.tr()}'
+                              ' (+${_pendingHours(widget.pendingReq!)} hrs)',
+                              style: AppTextStyles.bodyXs.copyWith(
+                                color: AppColors.warning,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 10,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => _cancelPendingRequest(
+                        widget.pendingReq!.id),
+                    child: Text('cancel'.tr(),
+                        style: AppTextStyles.bodyXs.copyWith(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                        )),
+                  ),
+                ],
+              ),
+            ),
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
@@ -1348,6 +1363,15 @@ class _EnrollmentCardState extends ConsumerState<_EnrollmentCard> {
                       ref.invalidate(pendingChangesForStudentProvider(
                           widget.studentId));
                     }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('requestSubmitted'.tr()),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.danger,
@@ -1778,7 +1802,16 @@ class _RenewCourseSheetState extends State<_RenewCourseSheet> {
         },
         receiptUrls: urls,
       );
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('requestSubmitted'.tr()),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -2094,7 +2127,16 @@ class _AddCourseSheetState extends State<_AddCourseSheet> {
         },
         receiptUrls: urls,
       );
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('requestSubmitted'.tr()),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -2178,9 +2220,12 @@ class _AddCourseSheetState extends State<_AddCourseSheet> {
                           horizontal: 12, vertical: 14),
                     ),
                     isExpanded: true,
+                    menuMaxHeight: 300,
                     items: widget.courses
                         .map((c) => DropdownMenuItem(
-                            value: c.id, child: Text(c.name)))
+                            value: c.id,
+                            child: Text(c.name,
+                                overflow: TextOverflow.ellipsis)))
                         .toList(),
                     onChanged: (v) => setState(() {
                       _selectedCourseId = v;

@@ -61,7 +61,10 @@
       "PowerShell(Remove-Item \"D:\\\\Apps and Games Dev\\\\school_sms_flutter\\\\lib\\\\core\\\\locale_provider.dart\" -Confirm:$false)",
       "PowerShell(flutter devices 2>&1)",
       "PowerShell(flutter run -d 10AE480B9R001YH 2>&1)",
-      "PowerShell(git init)"
+      "PowerShell(git init)",
+      "PowerShell(git rm --cached .env)",
+      "mcp__claude_ai_Supabase__list_edge_functions",
+      "mcp__claude_ai_Supabase__get_edge_function"
     ]
   }
 }

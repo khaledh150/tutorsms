@@ -127,9 +127,18 @@ class _HomePageState extends ConsumerState<HomePage>
 
     return Scaffold(
       backgroundColor: AppColors.bgMain,
-      body: SingleChildScrollView(
-        controller: _scrollController,
-        padding: const EdgeInsets.only(bottom: 24),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(expectedTodayProvider);
+          ref.invalidate(dashboardStudentsProvider);
+          ref.invalidate(renewalStudentsProvider);
+          ref.invalidate(todayAttendanceProvider);
+          ref.invalidate(pendingReviewCountProvider);
+        },
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 24),
         child: Column(
           children: [
             ValueListenableBuilder<double>(
@@ -261,6 +270,7 @@ class _HomePageState extends ConsumerState<HomePage>
             ),
           ],
         ),
+      ),
       ),
     );
   }

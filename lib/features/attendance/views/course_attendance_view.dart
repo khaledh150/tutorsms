@@ -81,15 +81,22 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
           if (_scanResult != null) _buildScanBanner(),
           if (_walkInOpen) _buildWalkInSearch(rows),
           Expanded(
-            child: students.isEmpty
-                ? _buildEmptyState()
-                : _buildStudentGrid(
-                    students,
-                    checkedSet,
-                    todayUsedMap,
-                    allTimeHours,
-                    rows,
-                  ),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(courseAttendanceProvider(courseId));
+                ref.invalidate(allTimeHoursProvider(courseId));
+                ref.invalidate(courseGroupsProvider);
+              },
+              child: students.isEmpty
+                  ? ListView(children: [_buildEmptyState()])
+                  : _buildStudentGrid(
+                      students,
+                      checkedSet,
+                      todayUsedMap,
+                      allTimeHours,
+                      rows,
+                    ),
+            ),
           ),
         ],
       ),
