@@ -118,37 +118,42 @@ class _SuperAdminDashboardState extends ConsumerState<SuperAdminDashboard> {
   }
 
   Widget _buildHeader() {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('superAdminDashboard'.tr(),
-                  style: AppTextStyles.displaySm
-                      .copyWith(color: AppColors.primary)),
-              const SizedBox(height: 2),
-              Text('superAdminDesc'.tr(),
-                  style: AppTextStyles.bodyXs
-                      .copyWith(color: AppColors.textMuted)),
-            ],
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: _showAccountSettings,
-          icon: const Icon(Icons.settings_rounded, size: 18),
-          label: Text('account'.tr()),
-        ),
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          onPressed: () => setState(() => _showCreate = true),
-          icon: const Icon(Icons.add_rounded, size: 18),
-          label: Text('createSchool'.tr()),
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          ),
+        Text('superAdminDashboard'.tr(),
+            style: AppTextStyles.displaySm
+                .copyWith(color: AppColors.primary)),
+        const SizedBox(height: 2),
+        Text('superAdminDesc'.tr(),
+            style: AppTextStyles.bodyXs
+                .copyWith(color: AppColors.textMuted)),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _showAccountSettings,
+                icon: const Icon(Icons.settings_rounded, size: 18),
+                label: Text('account'.tr()),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: () => setState(() => _showCreate = true),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: Text('createSchool'.tr()),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

@@ -18,7 +18,9 @@ class SuperAdminRepository {
       final loginMap = <String, String>{};
       for (final l in logins) {
         final m = l as Map<String, dynamic>;
-        loginMap[m['school_id'] as String] = m['owner_last_login'] as String;
+        final sid = m['school_id'] as String?;
+        final login = m['owner_last_login']?.toString();
+        if (sid != null && login != null) loginMap[sid] = login;
       }
 
       return healthData.map((raw) {

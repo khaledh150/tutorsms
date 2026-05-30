@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -372,12 +373,6 @@ class _HomePageState extends ConsumerState<HomePage>
                       }
                     }
                     Clipboard.setData(ClipboardData(text: buf.toString()));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('copied'.tr()),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
                   },
                   child: Container(
                     padding: const EdgeInsets.all(6),
@@ -406,13 +401,7 @@ class _HomePageState extends ConsumerState<HomePage>
                       }
                       buf.writeln('');
                     }
-                    Clipboard.setData(ClipboardData(text: buf.toString()));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('${'printList'.tr()} — ${'copied'.tr()}'),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
+                    SharePlus.instance.share(ShareParams(text: buf.toString()));
                   },
                   child: Container(
                     padding: const EdgeInsets.all(6),
@@ -420,7 +409,7 @@ class _HomePageState extends ConsumerState<HomePage>
                       color: AppColors.bgSurface,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.print_rounded,
+                    child: const Icon(Icons.share_rounded,
                         size: 16, color: AppColors.textMuted),
                   ),
                 ),
@@ -940,7 +929,7 @@ class _HomePageState extends ConsumerState<HomePage>
         final first = stu['first_name'] as String? ?? '';
         final last = stu['last_name'] as String? ?? '';
         if (nick != null && nick.isNotEmpty && first.isNotEmpty) {
-          name = "$nick '$first'";
+          name = '$nick $first';
         } else {
           name = nick ?? '$first $last';
         }

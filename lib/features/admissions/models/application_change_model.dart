@@ -33,7 +33,7 @@ class ApplicationChange {
 
   String get displayName {
     final parts = <String>[];
-    if (nickname != null && nickname!.isNotEmpty) parts.add('"$nickname"');
+    if (nickname != null && nickname!.isNotEmpty) parts.add(nickname!);
     if (firstName != null) parts.add(firstName!);
     if (lastName != null) parts.add(lastName!);
     return parts.join(' ').trim();

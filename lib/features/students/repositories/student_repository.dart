@@ -266,7 +266,7 @@ class StudentRepository {
         final first = s['first_name'] as String? ?? '';
         final last = s['last_name'] as String? ?? '';
         map[s['id'] as String] =
-            nick != null ? '"$nick" $first $last' : '$first $last';
+            nick != null ? '$nick $first $last' : '$first $last';
       }
       return map;
     } catch (e) {

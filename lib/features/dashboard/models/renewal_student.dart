@@ -25,7 +25,7 @@ class RenewalStudent {
 
   String get displayName {
     if (nickName != null && nickName!.isNotEmpty && firstName.isNotEmpty) {
-      return "$nickName '$firstName'";
+      return '$nickName $firstName';
     }
     return nickName ?? firstName;
   }

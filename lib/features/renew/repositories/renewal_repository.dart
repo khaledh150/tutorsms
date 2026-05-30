@@ -97,7 +97,7 @@ class RenewalRepository {
     final nickName = student['nick_name'] as String?;
     final firstName = student['first_name'] as String;
     final displayName =
-        nickName != null ? '$nickName ($firstName)' : firstName;
+        nickName != null ? '$nickName $firstName' : firstName;
 
     final rawPackages = course['hour_packages'];
     final packages = <Map<String, dynamic>>[];

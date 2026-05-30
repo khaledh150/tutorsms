@@ -357,7 +357,7 @@ class _MainShell extends ConsumerWidget {
       'more',
     ];
 
-    int currentIndex = 0;
+    int currentIndex = tabRoutes.length - 1; // default to More
     for (var i = 0; i < tabRoutes.length; i++) {
       if (location.startsWith(tabRoutes[i])) {
         currentIndex = i;
