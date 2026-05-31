@@ -123,6 +123,16 @@ class _HomePageState extends ConsumerState<HomePage>
     for (final e in expected) {
       courseNameMap[e.courseId] = e.courseName;
     }
+    for (final a in todayAttendance) {
+      final cid = a['course_id'] as String?;
+      if (cid != null && !courseNameMap.containsKey(cid)) {
+        final courses = a['courses'];
+        if (courses is Map) {
+          final cName = courses['name'] as String?;
+          if (cName != null) courseNameMap[cid] = cName;
+        }
+      }
+    }
     final feedByCourse =
         _buildFeedByCourse(todayAttendance, studentMap, courseNameMap);
 
@@ -369,7 +379,7 @@ class _HomePageState extends ConsumerState<HomePage>
                     for (final g in feedByCourse) {
                       buf.writeln('${g.courseName}:');
                       for (var i = 0; i < g.entries.length; i++) {
-                        buf.writeln('  ${i + 1}. ${g.entries[i].studentName}');
+                        buf.writeln('  ${i + 1}. ${g.entries[i].studentName}${g.entries[i].hours > 1 ? ' (${g.entries[i].hours}h)' : ''}');
                       }
                     }
                     Clipboard.setData(ClipboardData(text: buf.toString()));
@@ -397,7 +407,7 @@ class _HomePageState extends ConsumerState<HomePage>
                     for (final g in feedByCourse) {
                       buf.writeln('${g.courseName}:');
                       for (var i = 0; i < g.entries.length; i++) {
-                        buf.writeln('  ${i + 1}. ${g.entries[i].studentName}');
+                        buf.writeln('  ${i + 1}. ${g.entries[i].studentName}${g.entries[i].hours > 1 ? ' (${g.entries[i].hours}h)' : ''}');
                       }
                       buf.writeln('');
                     }
@@ -566,10 +576,31 @@ class _HomePageState extends ConsumerState<HomePage>
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Text(
-                                  entries[j].studentName,
-                                  style: AppTextStyles.bodyBoldSm,
+                                Expanded(
+                                  child: Text(
+                                    entries[j].studentName,
+                                    style: AppTextStyles.bodyBoldSm,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
+                                if (entries[j].hours > 1)
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryLight,
+                                      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                                    ),
+                                    child: Text(
+                                      '${entries[j].hours}h',
+                                      style: AppTextStyles.bodyXs.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -882,10 +913,31 @@ class _HomePageState extends ConsumerState<HomePage>
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          group.entries[j].studentName,
-                          style: AppTextStyles.bodyBoldSm,
+                        Expanded(
+                          child: Text(
+                            group.entries[j].studentName,
+                            style: AppTextStyles.bodyBoldSm,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
+                        if (group.entries[j].hours > 1)
+                          Container(
+                            margin: const EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryLight,
+                              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                            ),
+                            child: Text(
+                              '${group.entries[j].hours}h',
+                              style: AppTextStyles.bodyXs.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -922,7 +974,8 @@ class _HomePageState extends ConsumerState<HomePage>
       if (courseId == null) continue;
       final cName = courseNameMap[courseId] ?? 'Unknown Course';
       map.putIfAbsent(courseId, () => _FeedCourseGroup(courseName: cName));
-      final stu = studentMap[a['student_id']];
+      final studentId = a['student_id'] as String;
+      final stu = studentMap[studentId];
       String name;
       if (stu != null) {
         final nick = stu['nick_name'] as String?;
@@ -934,12 +987,19 @@ class _HomePageState extends ConsumerState<HomePage>
           name = nick ?? '$first $last';
         }
       } else {
-        name = a['student_id'] as String;
+        name = studentId;
       }
-      map[courseId]!.entries.add(_FeedEntry(
-        studentName: name,
-        studentId: a['student_id'] as String,
-      ));
+      final existing = map[courseId]!.entries
+          .where((e) => e.studentId == studentId)
+          .firstOrNull;
+      if (existing != null) {
+        existing.hours++;
+      } else {
+        map[courseId]!.entries.add(_FeedEntry(
+          studentName: name,
+          studentId: studentId,
+        ));
+      }
     }
     return map.values.toList();
   }
@@ -961,7 +1021,8 @@ class _FeedCourseGroup {
 class _FeedEntry {
   final String studentName;
   final String studentId;
-  _FeedEntry({required this.studentName, required this.studentId});
+  int hours;
+  _FeedEntry({required this.studentName, required this.studentId, this.hours = 1});
 }
 
 class _ActionCard extends StatelessWidget {

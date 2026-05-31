@@ -39,7 +39,7 @@ class DashboardRepository {
       final today = DateTime.now().toIso8601String().substring(0, 10);
       final res = await supabase
           .from('attendance')
-          .select('id,student_id,course_id,attended_at_ts,approved_by')
+          .select('id,student_id,course_id,attended_at_ts,approved_by,courses(name)')
           .gte('attended_at_ts', today)
           .not('approved_by', 'is', null)
           .order('attended_at_ts', ascending: false)
