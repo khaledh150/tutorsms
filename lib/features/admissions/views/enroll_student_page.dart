@@ -11,6 +11,7 @@ import '../../../core/constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../courses/models/course_model.dart';
 import '../../courses/providers/course_provider.dart';
 import '../repositories/application_repository.dart';
@@ -211,6 +212,8 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
 
     try {
       final repo = ApplicationRepository();
+      final user = ref.read(authProvider).valueOrNull;
+      final isAdmin = user?.isAdmin ?? false;
 
       List<String> receiptUrls = [];
       if (_receipts.isNotEmpty) {
@@ -259,20 +262,37 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
 
       final total = _totalPrice(courses);
 
-      await repo.directEnrollStudent(
-        nickName: _nickCtrl.text.trim(),
-        firstName: _firstCtrl.text.trim(),
-        lastName: _lastCtrl.text.trim(),
-        dob: _dob,
-        parentPhone: _phoneCtrl.text.trim(),
-        courses: slots,
-        courseLimits: limits,
-        paymentReceiptUrls: receiptUrls,
-        enrollmentRows: enrollmentRows,
-        studentPhoto: _studentPhoto,
-        purchasedPackages: purchasedPackages,
-        totalPrice: total,
-      );
+      if (isAdmin) {
+        await repo.directEnrollStudent(
+          nickName: _nickCtrl.text.trim(),
+          firstName: _firstCtrl.text.trim(),
+          lastName: _lastCtrl.text.trim(),
+          dob: _dob,
+          parentPhone: _phoneCtrl.text.trim(),
+          courses: slots,
+          courseLimits: limits,
+          paymentReceiptUrls: receiptUrls,
+          enrollmentRows: enrollmentRows,
+          studentPhoto: _studentPhoto,
+          purchasedPackages: purchasedPackages,
+          totalPrice: total,
+        );
+      } else {
+        await repo.submitApplication(
+          nickName: _nickCtrl.text.trim(),
+          firstName: _firstCtrl.text.trim(),
+          lastName: _lastCtrl.text.trim(),
+          dob: _dob,
+          parentPhone: _phoneCtrl.text.trim(),
+          courses: slots,
+          courseLimits: limits,
+          paymentReceiptUrls: receiptUrls,
+          submittedBy: user?.id,
+          purchasedPackages: purchasedPackages,
+          totalPrice: total,
+          studentPhotoFile: _studentPhoto,
+        );
+      }
 
       if (mounted) setState(() => _submitted = true);
     } catch (e) {

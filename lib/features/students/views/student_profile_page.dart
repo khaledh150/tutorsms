@@ -23,6 +23,7 @@ import '../../courses/models/course_model.dart';
 import '../../attendance/repositories/attendance_repository.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../courses/providers/course_provider.dart';
+import '../../inbox/providers/inbox_provider.dart';
 import '../../messaging/models/line_config_model.dart';
 import '../../messaging/models/line_connection_model.dart';
 import '../../messaging/models/unlinked_user_model.dart';
@@ -1552,19 +1553,35 @@ class _LineConnectionCardState
   }
 
   Widget _buildDropdown(List<UnlinkedLineUser> users) {
-    final selected = _selectedUnlinkedId != null
-        ? users
-            .where((u) => u.lineUserId == _selectedUnlinkedId)
-            .firstOrNull
-        : null;
+    final connections = ref.watch(lineConnectionsProvider).valueOrNull ?? [];
+    final studentNames = ref.watch(studentNameMapProvider).valueOrNull ?? {};
 
-    final filtered = _searchTerm.isEmpty
+    final linkedAccounts = <LineConnection>[];
+    final seenLineIds = <String>{};
+    for (final c in connections) {
+      if (c.studentId != widget.studentId && seenLineIds.add(c.lineUserId)) {
+        linkedAccounts.add(c);
+      }
+    }
+
+    String? selectedLabel;
+    if (_selectedUnlinkedId != null) {
+      final fromUnlinked = users.where((u) => u.lineUserId == _selectedUnlinkedId).firstOrNull;
+      if (fromUnlinked != null) {
+        selectedLabel = fromUnlinked.displayName;
+      } else {
+        final fromLinked = linkedAccounts.where((c) => c.lineUserId == _selectedUnlinkedId).firstOrNull;
+        selectedLabel = fromLinked?.displayName;
+      }
+    }
+
+    final q = _searchTerm.toLowerCase();
+    final filteredUnlinked = q.isEmpty
         ? users
-        : users.where((u) =>
-            u.displayName
-                ?.toLowerCase()
-                .contains(_searchTerm.toLowerCase()) ??
-            false).toList();
+        : users.where((u) => u.displayName?.toLowerCase().contains(q) ?? false).toList();
+    final filteredLinked = q.isEmpty
+        ? linkedAccounts
+        : linkedAccounts.where((c) => c.displayName?.toLowerCase().contains(q) ?? false).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1572,8 +1589,7 @@ class _LineConnectionCardState
         GestureDetector(
           onTap: () => setState(() => _dropdownOpen = !_dropdownOpen),
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: const Color(0xFFF5F5F5),
               borderRadius: BorderRadius.circular(8),
@@ -1583,17 +1599,14 @@ class _LineConnectionCardState
               children: [
                 Expanded(
                   child: Text(
-                    selected?.displayName ?? 'selectStudent'.tr(),
+                    selectedLabel ?? 'selectLineAccount'.tr(),
                     style: AppTextStyles.bodyXs.copyWith(
-                        color: selected != null
-                            ? AppColors.textPrimary
-                            : AppColors.textMuted,
+                        color: selectedLabel != null ? AppColors.textPrimary : AppColors.textMuted,
                         fontSize: 11),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Icon(Icons.expand_more_rounded,
-                    size: 12, color: AppColors.textMuted),
+                const Icon(Icons.expand_more_rounded, size: 12, color: AppColors.textMuted),
               ],
             ),
           ),
@@ -1601,36 +1614,26 @@ class _LineConnectionCardState
         if (_dropdownOpen)
           Container(
             margin: const EdgeInsets.only(top: 4),
-            constraints: const BoxConstraints(maxHeight: 192),
+            constraints: const BoxConstraints(maxHeight: 260),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFFE0E0E0)),
-              boxShadow: const [
-                BoxShadow(
-                    color: Color(0x1A000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 4)),
-              ],
+              boxShadow: const [BoxShadow(color: Color(0x1A000000), blurRadius: 8, offset: Offset(0, 4))],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: TextField(
                     autofocus: true,
-                    onChanged: (v) =>
-                        setState(() => _searchTerm = v),
+                    onChanged: (v) => setState(() => _searchTerm = v),
                     decoration: InputDecoration(
                       hintText: 'searchPlaceholder'.tr(),
-                      hintStyle: AppTextStyles.bodyXs
-                          .copyWith(color: AppColors.textMuted),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                      hintStyle: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted),
+                      border: InputBorder.none, isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     ),
                     style: AppTextStyles.bodyXs,
                   ),
@@ -1640,62 +1643,95 @@ class _LineConnectionCardState
                   child: ListView(
                     padding: EdgeInsets.zero,
                     shrinkWrap: true,
-                    children: filtered.map((u) {
-                      return InkWell(
-                        onTap: () => setState(() {
-                          _selectedUnlinkedId = u.lineUserId;
-                          _dropdownOpen = false;
-                          _searchTerm = '';
-                        }),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
+                    children: [
+                      // Unlinked accounts (priority)
+                      ...filteredUnlinked.map((u) => _dropdownItem(
+                        lineUserId: u.lineUserId,
+                        displayName: u.displayName,
+                        pictureUrl: u.pictureUrl,
+                      )),
+                      // Separator + linked accounts
+                      if (filteredLinked.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           child: Row(
                             children: [
-                              u.pictureUrl != null
-                                  ? CircleAvatar(
-                                      radius: 12,
-                                      backgroundImage: NetworkImage(
-                                          u.pictureUrl!),
-                                    )
-                                  : CircleAvatar(
-                                      radius: 12,
-                                      backgroundColor:
-                                          const Color(0xFFB0BEC5),
-                                      child: Text(
-                                        (u.displayName ?? '?')
-                                            .characters
-                                            .first
-                                            .toUpperCase(),
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight:
-                                                FontWeight.w700),
-                                      ),
-                                    ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                    u.displayName ?? 'Unknown',
-                                    style: AppTextStyles.bodyXs
-                                        .copyWith(
-                                            fontWeight:
-                                                FontWeight.w600),
-                                    overflow:
-                                        TextOverflow.ellipsis),
+                              const Expanded(child: Divider()),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text('alreadyLinked'.tr(),
+                                    style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted, fontSize: 9, fontWeight: FontWeight.w700)),
                               ),
+                              const Expanded(child: Divider()),
                             ],
                           ),
                         ),
-                      );
-                    }).toList(),
+                        ...filteredLinked.map((c) {
+                          final linkedTo = studentNames[c.studentId] ?? '';
+                          return _dropdownItem(
+                            lineUserId: c.lineUserId,
+                            displayName: c.displayName,
+                            pictureUrl: c.pictureUrl,
+                            subtitle: '${'linkedTo'.tr()} $linkedTo',
+                          );
+                        }),
+                      ],
+                    ],
                   ),
                 ),
               ],
             ),
           ),
       ],
+    );
+  }
+
+  Widget _dropdownItem({
+    required String lineUserId,
+    String? displayName,
+    String? pictureUrl,
+    String? subtitle,
+  }) {
+    return InkWell(
+      onTap: () => setState(() {
+        _selectedUnlinkedId = lineUserId;
+        _dropdownOpen = false;
+        _searchTerm = '';
+      }),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
+          children: [
+            pictureUrl != null
+                ? CircleAvatar(radius: 12, backgroundImage: NetworkImage(pictureUrl))
+                : CircleAvatar(
+                    radius: 12,
+                    backgroundColor: subtitle != null ? AppColors.lineGreen : const Color(0xFFB0BEC5),
+                    child: Text(
+                      (displayName ?? '?').characters.first.toUpperCase(),
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(displayName ?? 'Unknown',
+                      style: AppTextStyles.bodyXs.copyWith(fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis),
+                  if (subtitle != null)
+                    Text(subtitle,
+                        style: AppTextStyles.bodyXs.copyWith(color: AppColors.lineGreen, fontSize: 9),
+                        overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            if (subtitle != null)
+              const Icon(Icons.link_rounded, size: 12, color: AppColors.lineGreen),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1711,6 +1747,52 @@ class _LineConnectionCardState
   Future<void> _handleLink(
       List<UnlinkedLineUser> unlinkedUsers, dynamic config) async {
     if (_selectedUnlinkedId == null) return;
+
+    final connections = ref.read(lineConnectionsProvider).valueOrNull ?? [];
+    final existingLinks = connections
+        .where((c) => c.lineUserId == _selectedUnlinkedId && c.studentId != widget.studentId)
+        .toList();
+
+    if (existingLinks.isNotEmpty) {
+      final studentNames = ref.read(studentNameMapProvider).valueOrNull ?? {};
+      final linkedNames = existingLinks
+          .map((c) => studentNames[c.studentId] ?? 'Unknown')
+          .join(', ');
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radius2xl)),
+          title: Text('confirmLinkMultiple'.tr(), style: AppTextStyles.bodyBoldBase),
+          content: Text(
+            'lineAlreadyLinked'.tr(namedArgs: {'students': linkedNames, 'current': widget.studentName}),
+            style: AppTextStyles.bodySm,
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+                    child: Text('cancel'.tr()),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.lineGreen, padding: const EdgeInsets.symmetric(vertical: 12)),
+                    child: Text('linkLine'.tr()),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
     setState(() => _linkingLine = true);
     try {
       final u = unlinkedUsers
@@ -1719,7 +1801,7 @@ class _LineConnectionCardState
       final name = widget.studentName;
 
       String? welcomeMessage;
-      if (config is LineConfig && config.autoLinkNotify) {
+      if (config is LineConfig && config.autoLinkNotify && existingLinks.isEmpty) {
         final tpl = config.messageTemplates.linkWelcome.isNotEmpty
             ? config.messageTemplates.linkWelcome
             : 'Your LINE account has been linked to {{name}}!\n\n'

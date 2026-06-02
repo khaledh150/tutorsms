@@ -140,8 +140,21 @@ class ApplicationRepository {
     required Map<String, int> courseLimits,
     required List<String> paymentReceiptUrls,
     String? submittedBy,
+    List<Map<String, dynamic>>? purchasedPackages,
+    int? totalPrice,
+    XFile? studentPhotoFile,
   }) async {
     try {
+      String? studentPhotoUrl;
+      if (studentPhotoFile != null) {
+        final ext = studentPhotoFile.name.split('.').last;
+        final path = 'pending-${DateTime.now().millisecondsSinceEpoch}.$ext';
+        final bytes = await studentPhotoFile.readAsBytes();
+        await supabase.storage.from('student-photos').uploadBinary(path, bytes,
+            fileOptions: const FileOptions(upsert: true));
+        studentPhotoUrl = supabase.storage.from('student-photos').getPublicUrl(path);
+      }
+
       await supabase.from('applications').insert([
         {
           'nick_name': nickName,
@@ -154,6 +167,10 @@ class ApplicationRepository {
           'course_limits': courseLimits,
           'payment_receipt_urls': paymentReceiptUrls,
           'status': 'pending',
+          'submitted_by': submittedBy,
+          'purchased_packages': ?purchasedPackages,
+          'total_price': ?totalPrice,
+          'student_photo_url': ?studentPhotoUrl,
         }
       ]);
     } catch (e) {

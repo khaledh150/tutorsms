@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/course_model.dart';
 import '../providers/course_provider.dart';
 
@@ -46,6 +47,7 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
     final coursesAsync = ref.watch(coursesProvider);
     final courses = coursesAsync.valueOrNull ?? [];
     final isLoading = coursesAsync.isLoading;
+    final isAdmin = ref.watch(authProvider).valueOrNull?.isAdmin ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.bgMain,
@@ -73,6 +75,7 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
                       : _ManageTab(
                           courses: courses,
                           isLoading: isLoading,
+                          isAdmin: isAdmin,
                         ),
                 ),
               ),
@@ -377,9 +380,10 @@ class _CheckTabState extends ConsumerState<_CheckTab> {
 }
 
 class _ManageTab extends ConsumerStatefulWidget {
-  const _ManageTab({required this.courses, required this.isLoading});
+  const _ManageTab({required this.courses, required this.isLoading, required this.isAdmin});
   final List<Course> courses;
   final bool isLoading;
+  final bool isAdmin;
 
   @override
   ConsumerState<_ManageTab> createState() => _ManageTabState();
@@ -408,30 +412,32 @@ class _ManageTabState extends ConsumerState<_ManageTab> {
           child: ListView.builder(
             itemCount: widget.courses.length,
             itemBuilder: (context, idx) =>
-                _CourseCard(course: widget.courses[idx]),
+                _CourseCard(course: widget.courses[idx], isAdmin: widget.isAdmin),
           ),
         ),
-        const SizedBox(height: 12),
-        GestureDetector(
-          onTap: () => _openWizard(null),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.add, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Text('addCourse'.tr(),
-                    style:
-                        AppTextStyles.bodyBoldSm.copyWith(color: Colors.white)),
-              ],
+        if (widget.isAdmin) ...[
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () => _openWizard(null),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.add, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Text('addCourse'.tr(),
+                      style:
+                          AppTextStyles.bodyBoldSm.copyWith(color: Colors.white)),
+                ],
+              ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -453,8 +459,9 @@ class _ManageTabState extends ConsumerState<_ManageTab> {
 }
 
 class _CourseCard extends ConsumerWidget {
-  const _CourseCard({required this.course});
+  const _CourseCard({required this.course, required this.isAdmin});
   final Course course;
+  final bool isAdmin;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -542,30 +549,31 @@ class _CourseCard extends ConsumerWidget {
               ],
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_rounded,
-                    size: 18, color: AppColors.info),
-                onPressed: () async {
-                  final result = await showDialog<Map<String, dynamic>>(
-                    context: context,
-                    builder: (_) => _CourseWizard(course: course),
-                  );
-                  if (result == null) return;
-                  ref
-                      .read(coursesProvider.notifier)
-                      .updateCourse(course.id, result);
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_rounded,
-                    size: 18, color: AppColors.danger),
-                onPressed: () => _confirmDelete(context, ref),
-              ),
-            ],
-          ),
+          if (isAdmin)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit_rounded,
+                      size: 18, color: AppColors.info),
+                  onPressed: () async {
+                    final result = await showDialog<Map<String, dynamic>>(
+                      context: context,
+                      builder: (_) => _CourseWizard(course: course),
+                    );
+                    if (result == null) return;
+                    ref
+                        .read(coursesProvider.notifier)
+                        .updateCourse(course.id, result);
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_rounded,
+                      size: 18, color: AppColors.danger),
+                  onPressed: () => _confirmDelete(context, ref),
+                ),
+              ],
+            ),
         ],
       ),
     );

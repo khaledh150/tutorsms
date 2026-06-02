@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/router.dart';
-import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 
 Future<void> main() async {
@@ -76,23 +75,15 @@ class WonderKidsApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
-    return ColoredBox(
-      color: AppColors.bgMain,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: MaterialApp.router(
-            key: ValueKey(context.locale),
-            title: 'Wonder Kids',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light,
-            routerConfig: router,
-            localizationsDelegates: context.localizationDelegates,
-            supportedLocales: context.supportedLocales,
-            locale: context.locale,
-          ),
-        ),
-      ),
+    return MaterialApp.router(
+      key: ValueKey(context.locale),
+      title: 'Wonder Kids',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
+      routerConfig: router,
+      localizationsDelegates: context.localizationDelegates,
+      supportedLocales: context.supportedLocales,
+      locale: context.locale,
     );
   }
 }

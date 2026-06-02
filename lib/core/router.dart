@@ -108,8 +108,6 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Admin-only routes
       const adminRoutes = [
-        '/courses',
-        '/admissions',
         '/settings',
         '/billing',
         '/reports',
