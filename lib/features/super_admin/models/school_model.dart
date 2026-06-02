@@ -98,12 +98,15 @@ class SchoolHealth {
 
   bool get isTrialExpired {
     if (trialEndsAt == null) return false;
-    return DateTime.now().isAfter(DateTime.parse(trialEndsAt!));
+    final d = DateTime.tryParse(trialEndsAt!);
+    return d != null && DateTime.now().isAfter(d);
   }
 
   int get trialDaysRemaining {
     if (trialEndsAt == null) return 0;
-    final diff = DateTime.parse(trialEndsAt!).difference(DateTime.now()).inDays;
+    final d = DateTime.tryParse(trialEndsAt!);
+    if (d == null) return 0;
+    final diff = d.difference(DateTime.now()).inDays;
     return diff < 0 ? 0 : diff;
   }
 

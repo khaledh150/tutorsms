@@ -131,8 +131,9 @@ class CourseRepository {
       final results = <Map<String, dynamic>>[];
       for (final e in (res as List)) {
         final s = e['students'];
-        if (s == null) continue;
-        final id = s['id'] as String;
+        if (s is! Map) continue;
+        final id = s['id'] as String?;
+        if (id == null) continue;
         if (seen.add(id)) {
           results.add(Map<String, dynamic>.from(s));
         }

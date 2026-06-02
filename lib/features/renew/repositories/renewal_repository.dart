@@ -95,7 +95,7 @@ class RenewalRepository {
         countRes.count + ((enrollment['initial_used_hours'] as num?)?.toInt() ?? 0);
 
     final nickName = student['nick_name'] as String?;
-    final firstName = student['first_name'] as String;
+    final firstName = student['first_name'] as String? ?? '';
     final displayName =
         nickName != null ? '$nickName $firstName' : firstName;
 

@@ -84,9 +84,10 @@ class AuthNotifier extends AsyncNotifier<AppUser?> {
           final trialDuration = trial['trial_duration'] as String?;
           final schoolName = trial['name'] as String? ?? '';
 
+          final trialEnd = trialEndsAt != null ? DateTime.tryParse(trialEndsAt) : null;
           final isExpired = status == 'free' &&
-              trialEndsAt != null &&
-              DateTime.now().isAfter(DateTime.parse(trialEndsAt));
+              trialEnd != null &&
+              DateTime.now().isAfter(trialEnd);
 
           ref.read(trialStatusProvider.notifier).state = TrialStatus(
             isExpired: isExpired,

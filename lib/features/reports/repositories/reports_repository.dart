@@ -44,10 +44,10 @@ class ReportsRepository {
   }) async {
     try {
       final toDate = to != null && to.isNotEmpty
-          ? DateTime.parse(to)
+          ? (DateTime.tryParse(to) ?? DateTime.now())
           : DateTime.now();
       final fromDate = from != null && from.isNotEmpty
-          ? DateTime.parse(from)
+          ? (DateTime.tryParse(from) ?? toDate.subtract(const Duration(days: 29)))
           : toDate.subtract(const Duration(days: 29));
       final daysBack = toDate.difference(fromDate).inDays.clamp(1, 365);
 
