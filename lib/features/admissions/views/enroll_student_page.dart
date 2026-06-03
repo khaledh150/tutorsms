@@ -14,6 +14,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../courses/models/course_model.dart';
 import '../../courses/providers/course_provider.dart';
+import '../../students/providers/student_provider.dart';
 import '../../messaging/providers/messaging_provider.dart';
 import '../repositories/application_repository.dart';
 
@@ -306,6 +307,7 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
         );
       }
 
+      ref.invalidate(studentsWithStatusProvider);
       if (mounted) setState(() => _submitted = true);
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());

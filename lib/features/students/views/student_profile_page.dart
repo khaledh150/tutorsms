@@ -662,7 +662,11 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
         studentId: widget.studentId,
         courses: available,
       ),
-    );
+    ).then((_) {
+      ref.invalidate(studentEnrollmentsProvider(widget.studentId));
+      ref.invalidate(pendingChangesForStudentProvider(widget.studentId));
+      ref.invalidate(studentsWithStatusProvider);
+    });
   }
 
   // --- Edit Student ---
@@ -1119,7 +1123,11 @@ class _EnrollmentCardState extends ConsumerState<_EnrollmentCard> {
         courseName: enr.courseName ?? enr.courseId,
         packages: course?.hourPackages ?? [],
       ),
-    );
+    ).then((_) {
+      ref.invalidate(studentEnrollmentsProvider(widget.studentId));
+      ref.invalidate(pendingChangesForStudentProvider(widget.studentId));
+      ref.invalidate(studentsWithStatusProvider);
+    });
   }
 
   void _showLateCheckInDialog(BuildContext context) {
@@ -1267,6 +1275,7 @@ class _EnrollmentCardState extends ConsumerState<_EnrollmentCard> {
                               ref.invalidate(
                                   studentEnrollmentsProvider(
                                       widget.studentId));
+                              ref.invalidate(studentsWithStatusProvider);
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
@@ -1302,6 +1311,7 @@ class _EnrollmentCardState extends ConsumerState<_EnrollmentCard> {
     );
     ref.invalidate(studentAttendanceProvider(widget.studentId));
     ref.invalidate(studentEnrollmentsProvider(widget.studentId));
+    ref.invalidate(studentsWithStatusProvider);
   }
 
   void _showCancelCourseDialog(BuildContext context) {
@@ -1868,7 +1878,7 @@ class _LineConnectionCardState
 // ---------------------------------------------------------------------------
 // Renew / Add Hours Bottom Sheet
 // ---------------------------------------------------------------------------
-class _RenewCourseSheet extends StatefulWidget {
+class _RenewCourseSheet extends ConsumerStatefulWidget {
   const _RenewCourseSheet({
     required this.studentId,
     required this.courseId,
@@ -1881,10 +1891,10 @@ class _RenewCourseSheet extends StatefulWidget {
   final List<HourPackage> packages;
 
   @override
-  State<_RenewCourseSheet> createState() => _RenewCourseSheetState();
+  ConsumerState<_RenewCourseSheet> createState() => _RenewCourseSheetState();
 }
 
-class _RenewCourseSheetState extends State<_RenewCourseSheet> {
+class _RenewCourseSheetState extends ConsumerState<_RenewCourseSheet> {
   int _selectedHours = 0;
   XFile? _receipt;
   String? _error;
@@ -1911,21 +1921,38 @@ class _RenewCourseSheetState extends State<_RenewCourseSheet> {
     });
     try {
       final repo = ApplicationRepository();
+      final user = ref.read(authProvider).valueOrNull;
+      final isAdmin = user?.isAdmin ?? false;
       final urls = await repo.uploadReceipts([_receipt!]);
-      await repo.submitChangeRequest(
-        studentId: widget.studentId,
-        type: 'renewal',
-        changes: {
-          'course_limits': {widget.courseId: _selectedHours},
-          'receipts': urls,
-        },
-        receiptUrls: urls,
-      );
+
+      if (isAdmin) {
+        final existing = await supabase
+            .from('enrollments')
+            .select('purchased_hours')
+            .eq('student_id', widget.studentId)
+            .eq('course_id', widget.courseId)
+            .eq('status', 'active')
+            .maybeSingle();
+        final currentHours = (existing?['purchased_hours'] as num?)?.toInt() ?? 0;
+        await supabase.from('enrollments').update({
+          'purchased_hours': currentHours + _selectedHours,
+        }).eq('student_id', widget.studentId).eq('course_id', widget.courseId).eq('status', 'active');
+      } else {
+        await repo.submitChangeRequest(
+          studentId: widget.studentId,
+          type: 'renewal',
+          changes: {
+            'course_limits': {widget.courseId: _selectedHours},
+            'receipts': urls,
+          },
+          receiptUrls: urls,
+        );
+      }
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('requestSubmitted'.tr()),
+            content: Text(isAdmin ? 'saved'.tr() : 'requestSubmitted'.tr()),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
           ),
@@ -2162,7 +2189,7 @@ class _RenewCourseSheetState extends State<_RenewCourseSheet> {
 // ---------------------------------------------------------------------------
 // Add Course Bottom Sheet (with day/time selection + package grid + receipt)
 // ---------------------------------------------------------------------------
-class _AddCourseSheet extends StatefulWidget {
+class _AddCourseSheet extends ConsumerStatefulWidget {
   const _AddCourseSheet({
     required this.studentId,
     required this.courses,
@@ -2171,10 +2198,10 @@ class _AddCourseSheet extends StatefulWidget {
   final List<Course> courses;
 
   @override
-  State<_AddCourseSheet> createState() => _AddCourseSheetState();
+  ConsumerState<_AddCourseSheet> createState() => _AddCourseSheetState();
 }
 
-class _AddCourseSheetState extends State<_AddCourseSheet> {
+class _AddCourseSheetState extends ConsumerState<_AddCourseSheet> {
   String? _selectedCourseId;
   Map<String, List<String>> _selectedDays = {};
   int _selectedHours = 0;
@@ -2236,26 +2263,40 @@ class _AddCourseSheetState extends State<_AddCourseSheet> {
     });
     try {
       final repo = ApplicationRepository();
+      final user = ref.read(authProvider).valueOrNull;
+      final isAdmin = user?.isAdmin ?? false;
       final urls = await repo.uploadReceipts([_receipt!]);
       final initialUsed = _remainingHours != null && _remainingHours! >= 0
           ? (_selectedHours - _remainingHours!).clamp(0, _selectedHours)
           : 0;
-      await repo.submitChangeRequest(
-        studentId: widget.studentId,
-        type: 'edit',
-        changes: {
-          'course_changes': {_selectedCourseId!: _selectedDays},
-          'course_limits': {_selectedCourseId!: _selectedHours},
-          if (initialUsed > 0) 'initial_used_hours': {_selectedCourseId!: initialUsed},
-          'receipts': urls,
-        },
-        receiptUrls: urls,
-      );
+
+      if (isAdmin) {
+        await supabase.from('enrollments').insert({
+          'student_id': widget.studentId,
+          'course_id': _selectedCourseId!,
+          'schedule': _selectedDays,
+          'purchased_hours': _selectedHours,
+          'initial_used_hours': initialUsed,
+          'status': 'active',
+        });
+      } else {
+        await repo.submitChangeRequest(
+          studentId: widget.studentId,
+          type: 'edit',
+          changes: {
+            'course_changes': {_selectedCourseId!: _selectedDays},
+            'course_limits': {_selectedCourseId!: _selectedHours},
+            if (initialUsed > 0) 'initial_used_hours': {_selectedCourseId!: initialUsed},
+            'receipts': urls,
+          },
+          receiptUrls: urls,
+        );
+      }
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('requestSubmitted'.tr()),
+            content: Text(isAdmin ? 'saved'.tr() : 'requestSubmitted'.tr()),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
           ),

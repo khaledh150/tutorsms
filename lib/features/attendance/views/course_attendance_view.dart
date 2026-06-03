@@ -321,6 +321,9 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
         courseId: courseId,
         approverId: user.id,
       );
+      ref.invalidate(courseAttendanceProvider(courseId));
+      ref.invalidate(allTimeHoursProvider(courseId));
+      ref.invalidate(courseGroupsProvider);
       HapticFeedback.mediumImpact();
       _showResult('$name — ${'checkedInMsg'.tr()}', true);
       setState(() {
@@ -536,6 +539,9 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
         approverId: user.id,
         hours: hours,
       );
+      ref.invalidate(courseAttendanceProvider(courseId));
+      ref.invalidate(allTimeHoursProvider(courseId));
+      ref.invalidate(courseGroupsProvider);
       HapticFeedback.mediumImpact();
       _showResult(
         '${stu.displayName} — ${hours}h ${'checkedIn'.tr()}',
@@ -574,6 +580,9 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
           rowIds: todayRows.map((r) => r.id).toList(),
           userId: user.id,
         );
+        ref.invalidate(courseAttendanceProvider(courseId));
+        ref.invalidate(allTimeHoursProvider(courseId));
+        ref.invalidate(courseGroupsProvider);
       }
 
       HapticFeedback.lightImpact();
@@ -619,6 +628,9 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
           approverId: user.id,
         );
       }
+      ref.invalidate(courseAttendanceProvider(courseId));
+      ref.invalidate(allTimeHoursProvider(courseId));
+      ref.invalidate(courseGroupsProvider);
       HapticFeedback.mediumImpact();
       _showResult(
         'checkedInBulk'.tr(namedArgs: {'count': unchecked.length.toString()}),

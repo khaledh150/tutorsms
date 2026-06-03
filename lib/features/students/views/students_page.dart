@@ -262,17 +262,14 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
         }
         final s = visible[idx];
         return RepaintBoundary(
-          child: _StudentItemAnimator(
-            key: ValueKey('${_tab}_${s.id}'),
-            index: idx,
-            child: _StudentCard(
-              student: s,
-              tab: _tab,
-              onTap: () {
-                HapticFeedback.lightImpact();
-                context.go('/students/${s.id}');
-              },
-            ),
+          key: ValueKey('${_tab}_${s.id}'),
+          child: _StudentCard(
+            student: s,
+            tab: _tab,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              context.go('/students/${s.id}');
+            },
           ),
         );
       },
