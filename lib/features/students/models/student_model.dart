@@ -69,6 +69,8 @@ class StudentWithStatus extends Student {
   final int totalPurchased;
   final double totalUsed;
   final String tab; // active | notActive | finished
+  final String? lineDisplayName;
+  final List<String> courseNames;
 
   const StudentWithStatus({
     required super.id,
@@ -86,6 +88,8 @@ class StudentWithStatus extends Student {
     this.totalPurchased = 0,
     this.totalUsed = 0,
     this.tab = 'active',
+    this.lineDisplayName,
+    this.courseNames = const [],
   });
 
   bool get isOverlimit => totalPurchased > 0 && totalUsed >= totalPurchased;

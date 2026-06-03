@@ -695,7 +695,7 @@ class _StudentCard extends StatelessWidget {
       onTap: isBusy ? null : onTap,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 200),
-        opacity: isBusy ? 0.6 : (student.isExpectedToday ? 1.0 : 0.7),
+        opacity: isBusy ? 0.6 : 1.0,
         child: Container(
           decoration: BoxDecoration(
             color: _bgColor,
@@ -736,8 +736,6 @@ class _StudentCard extends StatelessWidget {
               ? Image.network(
                   student.photoUrl!,
                   fit: BoxFit.cover,
-                  cacheWidth: 200,
-                  cacheHeight: 200,
                   errorBuilder: (_, _, _) => _buildInitial(),
                 )
               : _buildInitial(),

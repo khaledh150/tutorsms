@@ -293,7 +293,7 @@ class StudentRepository {
             .limit(1000),
         supabase
             .from('enrollments')
-            .select('student_id, purchased_hours, initial_used_hours')
+            .select('student_id, purchased_hours, initial_used_hours, courses(name)')
             .eq('status', 'active')
             .limit(5000),
         supabase
@@ -307,6 +307,10 @@ class StudentRepository {
         supabase
             .from('student_course_attendance_summary')
             .select('student_id, total_hours')
+            .limit(5000),
+        supabase
+            .from('line_connections')
+            .select('student_id, display_name')
             .limit(5000),
       ];
 
@@ -332,25 +336,31 @@ class StudentRepository {
       final hourSummaryData = settled[3].error == null
           ? settled[3].data as List
           : <dynamic>[];
-
-      if (settled[1].error != null) {
-        debugPrint('fetchStudentsWithStatus: enrollments query failed: ${settled[1].error}');
-      }
-      if (settled[2].error != null) {
-        debugPrint('fetchStudentsWithStatus: attendance query failed: ${settled[2].error}');
-      }
-      if (settled[3].error != null) {
-        debugPrint('fetchStudentsWithStatus: hour summary query failed: ${settled[3].error}');
-      }
+      final lineData = settled.length > 4 && settled[4].error == null
+          ? settled[4].data as List
+          : <dynamic>[];
 
       final purchasedMap = <String, int>{};
       final initialUsedMap = <String, int>{};
+      final courseNamesMap = <String, Set<String>>{};
       for (final e in enrollmentsData) {
         final sid = e['student_id'] as String;
         purchasedMap[sid] =
             (purchasedMap[sid] ?? 0) + ((e['purchased_hours'] as num?)?.toInt() ?? 0);
         initialUsedMap[sid] = (initialUsedMap[sid] ?? 0) +
             ((e['initial_used_hours'] as num?)?.toInt() ?? 0);
+        final courses = e['courses'];
+        if (courses is Map) {
+          final cName = courses['name'] as String?;
+          if (cName != null) (courseNamesMap[sid] ??= {}).add(cName);
+        }
+      }
+
+      final lineNameMap = <String, String>{};
+      for (final l in lineData) {
+        final sid = l['student_id'] as String?;
+        final name = l['display_name'] as String?;
+        if (sid != null && name != null) lineNameMap[sid] = name;
       }
 
       final usedMap = <String, double>{};
@@ -378,6 +388,11 @@ class StudentRepository {
           tab = 'finished';
         } else if (lastCheckin == null) {
           tab = 'notActive';
+        } else {
+          final lastDate = DateTime.tryParse(lastCheckin);
+          if (lastDate != null && DateTime.now().difference(lastDate).inDays > 14) {
+            tab = 'notActive';
+          }
         }
 
         final student = Student.fromJson(s);
@@ -397,6 +412,8 @@ class StudentRepository {
           totalPurchased: totalPurchased,
           totalUsed: totalUsed,
           tab: tab,
+          lineDisplayName: lineNameMap[id],
+          courseNames: (courseNamesMap[id] ?? {}).toList(),
         );
       }).toList();
     } catch (e) {

@@ -62,7 +62,8 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       );
     }
 
-    final students = studentsAsync.valueOrNull ?? [];
+    final allStudents = studentsAsync.valueOrNull ?? [];
+    final students = allStudents.where((s) => s.status == 'active' || s.status == null).toList();
     final courses = coursesAsync.valueOrNull ?? [];
     final stats = ref.watch(attendanceStats30dProvider).valueOrNull;
     final courseUtil =
@@ -93,7 +94,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
     return Scaffold(
       backgroundColor: AppColors.bgMain,
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(allStudentsProvider);
+          ref.invalidate(coursesProvider);
+          ref.invalidate(attendanceStats30dProvider);
+          ref.invalidate(courseUtilizationProvider);
+        },
+        child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
             Row(
@@ -131,6 +139,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                 records, courseMap, studentMap, courses),
           ],
         ),
+      ),
     );
   }
 
@@ -615,11 +624,11 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Text('capacityUsed'.tr(namedArgs: {'pct': '$utilPct'}),
+                    Text('$utilPct% ${'capacityUsedLabel'.tr()}',
                         style: AppTextStyles.bodyXs
                             .copyWith(color: AppColors.textMuted)),
                     const SizedBox(width: 16),
-                    Text('checkIns30dCount'.tr(namedArgs: {'count': '$checkIns'}),
+                    Text('$checkIns ${'checkIns'.tr()} (30d)',
                         style: AppTextStyles.bodyXs
                             .copyWith(color: AppColors.textMuted)),
                   ],

@@ -14,6 +14,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../courses/models/course_model.dart';
 import '../../courses/providers/course_provider.dart';
+import '../../messaging/providers/messaging_provider.dart';
 import '../repositories/application_repository.dart';
 
 class EnrollStudentPage extends ConsumerStatefulWidget {
@@ -37,6 +38,7 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
   final _phoneCtrl = TextEditingController();
   String? _dob;
   XFile? _studentPhoto;
+  String? _selectedLineUserId;
 
   // Step 2
   final Map<String, _CourseSelection> _selections = {};
@@ -263,7 +265,7 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
       final total = _totalPrice(courses);
 
       if (isAdmin) {
-        await repo.directEnrollStudent(
+        final studentId = await repo.directEnrollStudent(
           nickName: _nickCtrl.text.trim(),
           firstName: _firstCtrl.text.trim(),
           lastName: _lastCtrl.text.trim(),
@@ -277,6 +279,16 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
           purchasedPackages: purchasedPackages,
           totalPrice: total,
         );
+        if (_selectedLineUserId != null && studentId != null) {
+          final unlinked = ref.read(unlinkedUsersProvider).valueOrNull ?? [];
+          final u = unlinked.where((x) => x.lineUserId == _selectedLineUserId).firstOrNull;
+          await ref.read(messagingRepositoryProvider).linkLineAccount(
+            studentId: studentId,
+            lineUserId: _selectedLineUserId!,
+            displayName: u?.displayName,
+            pictureUrl: u?.pictureUrl,
+          );
+        }
       } else {
         await repo.submitApplication(
           nickName: _nickCtrl.text.trim(),
@@ -312,6 +324,7 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
       _phoneCtrl.clear();
       _dob = null;
       _studentPhoto = null;
+      _selectedLineUserId = null;
       _selections.clear();
       _hoursRemaining.clear();
       _receipts.clear();
@@ -601,8 +614,66 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
             hint: '08XXXXXXXX',
             keyboardType: TextInputType.phone,
           ),
+          const SizedBox(height: 12),
+          _buildLineAccountPicker(),
         ],
       ),
+    );
+  }
+
+  Widget _buildLineAccountPicker() {
+    final unlinkedAsync = ref.watch(unlinkedUsersProvider);
+    final unlinked = unlinkedAsync.valueOrNull ?? [];
+    if (unlinked.isEmpty) return const SizedBox.shrink();
+
+    final selected = _selectedLineUserId != null
+        ? unlinked.where((u) => u.lineUserId == _selectedLineUserId).firstOrNull
+        : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('linkLine'.tr(),
+            style: AppTextStyles.bodyBoldSm.copyWith(color: AppColors.textSecondary)),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          value: _selectedLineUserId,
+          isExpanded: true,
+          decoration: InputDecoration(
+            hintText: 'selectLineAccount'.tr(),
+            hintStyle: AppTextStyles.bodySm.copyWith(color: AppColors.textMuted),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            prefixIcon: Icon(Icons.chat_bubble_rounded, color: AppColors.lineGreen, size: 20),
+          ),
+          menuMaxHeight: 250,
+          items: [
+            DropdownMenuItem<String>(value: null, child: Text('none'.tr(), style: AppTextStyles.bodySm.copyWith(color: AppColors.textMuted))),
+            ...unlinked.map((u) => DropdownMenuItem<String>(
+              value: u.lineUserId,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundColor: AppColors.lineGreen,
+                    backgroundImage: u.pictureUrl != null ? NetworkImage(u.pictureUrl!) : null,
+                    child: u.pictureUrl == null ? Text((u.displayName ?? '?')[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)) : null,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(u.displayName ?? 'Unknown', overflow: TextOverflow.ellipsis, style: AppTextStyles.bodySm)),
+                ],
+              ),
+            )),
+          ],
+          onChanged: (v) => setState(() => _selectedLineUserId = v),
+        ),
+        if (selected != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text('${'linkedTo'.tr()} ${selected.displayName}',
+                style: AppTextStyles.bodyXs.copyWith(color: AppColors.lineGreen, fontWeight: FontWeight.w600)),
+          ),
+      ],
     );
   }
 

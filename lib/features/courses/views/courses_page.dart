@@ -490,7 +490,7 @@ class _CourseCard extends ConsumerWidget {
                 Text(course.name, style: AppTextStyles.bodyBoldBase),
                 const SizedBox(height: 4),
                 Text(
-                  '${course.weekdays.map(_weekdayLabel).join(', ')} | ${'capacityLabel'.tr(namedArgs: {'capacity': '${course.capacity ?? '∞'}'})}',
+                  '${course.weekdays.map(_weekdayLabel).join(', ')} | ${'capacity'.tr()}: ${course.capacity ?? '∞'}',
                   style: AppTextStyles.bodyXs
                       .copyWith(color: AppColors.textMuted),
                 ),

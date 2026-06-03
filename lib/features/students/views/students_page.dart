@@ -55,9 +55,9 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
     final isLoading = allStudentsAsync.isLoading;
 
     final byTab = _groupByTab(allStudents);
-    final students = byTab[_tab] ?? [];
+    final sourceList = _search.trim().isNotEmpty ? allStudents : (byTab[_tab] ?? []);
 
-    final filtered = _filterStudents(students, _search);
+    final filtered = _filterStudents(sourceList, _search);
     final visible = filtered.take(_visibleCount).toList();
 
     final tabs = [
@@ -300,7 +300,9 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
       return (s.nickName ?? '').toLowerCase().contains(q) ||
           s.firstName.toLowerCase().contains(q) ||
           s.lastName.toLowerCase().contains(q) ||
-          (s.parentPhone ?? '').contains(q);
+          (s.parentPhone ?? '').contains(q) ||
+          (s.lineDisplayName ?? '').toLowerCase().contains(q) ||
+          s.courseNames.any((c) => c.toLowerCase().contains(q));
     }).toList();
   }
 }
