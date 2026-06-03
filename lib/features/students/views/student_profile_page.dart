@@ -2500,27 +2500,43 @@ class _AddCourseSheetState extends State<_AddCourseSheet> {
 
                   // Remaining hours (optional)
                   if (_selectedHours > 0) ...[
-                    const SizedBox(height: 16),
-                    Text('remainingHours'.tr(),
-                        style: AppTextStyles.bodyBoldSm
-                            .copyWith(color: AppColors.textSecondary)),
-                    const SizedBox(height: 4),
-                    Text('remainingHoursHint'.tr(),
-                        style: AppTextStyles.bodyXs
-                            .copyWith(color: AppColors.textMuted)),
-                    const SizedBox(height: 8),
-                    TextField(
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: '0',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 14),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        border: Border.all(color: const Color(0xFFF59E0B), width: 2),
                       ),
-                      onChanged: (v) => setState(() =>
-                          _remainingHours = int.tryParse(v)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('hoursRemainingLabel'.tr(),
+                              style: AppTextStyles.bodyBoldSm
+                                  .copyWith(color: const Color(0xFFB45309))),
+                          const SizedBox(height: 4),
+                          Text('hoursRemainingHint'.tr(),
+                              style: AppTextStyles.bodyXs
+                                  .copyWith(color: const Color(0xFF92400E))),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.displaySm,
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                                borderSide: const BorderSide(color: Color(0xFFF59E0B)),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                              hintText: '0',
+                            ),
+                            onChanged: (v) {
+                              _remainingHours = int.tryParse(v);
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ],
 
