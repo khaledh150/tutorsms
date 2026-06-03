@@ -112,13 +112,12 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
                     onPressed: () => _showEditStudentDialog(
                         context, student),
                   ),
-                  if (isAdmin)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded,
-                          color: AppColors.danger),
-                      onPressed: () =>
-                          _confirmDelete(context, student, enrollments, attendance),
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded,
+                        color: AppColors.danger),
+                    onPressed: () =>
+                        _confirmDelete(context, student, enrollments, attendance),
+                  ),
                 ],
               ),
               SliverPadding(
@@ -468,6 +467,9 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
 
   void _confirmDelete(BuildContext context, dynamic student,
       List<Enrollment> enrollments, List<Map<String, dynamic>> attendance) {
+    final user = ref.read(authProvider).valueOrNull;
+    final isAdmin = user?.isAdmin ?? false;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -488,10 +490,10 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
                   size: 32, color: AppColors.danger),
             ),
             const SizedBox(height: 16),
-            Text('deleteConfirmTitle'.tr(),
+            Text(isAdmin ? 'deleteConfirmTitle'.tr() : 'sendRequest'.tr(),
                 style: AppTextStyles.displaySm),
             const SizedBox(height: 8),
-            Text('deleteStudentConfirm'.tr(),
+            Text(isAdmin ? 'deleteStudentConfirm'.tr() : 'deleteStudentRequest'.tr(),
                 style: AppTextStyles.bodySm
                     .copyWith(color: AppColors.textSecondary),
                 textAlign: TextAlign.center),
@@ -506,19 +508,20 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('deleteWillRemove'.tr(),
+                  Text(isAdmin ? 'deleteWillRemove'.tr() : 'requestDetails'.tr(),
                       style: AppTextStyles.bodyBoldSm
                           .copyWith(color: AppColors.warning)),
                   const SizedBox(height: 4),
+                  Text(
+                      '• ${student.nickName ?? student.firstName} ${student.lastName}',
+                      style: AppTextStyles.bodySm
+                          .copyWith(color: AppColors.textSecondary)),
                   Text(
                       '• ${enrollments.length} ${'enrolledCourses'.tr().toLowerCase()}',
                       style: AppTextStyles.bodySm
                           .copyWith(color: AppColors.textSecondary)),
                   Text(
                       '• ${attendance.length} ${'attendanceHistory'.tr().toLowerCase()}',
-                      style: AppTextStyles.bodySm
-                          .copyWith(color: AppColors.textSecondary)),
-                  Text('• ${'allFinancialRecords'.tr()}',
                       style: AppTextStyles.bodySm
                           .copyWith(color: AppColors.textSecondary)),
                 ],
@@ -547,14 +550,47 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
                 child: ElevatedButton(
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    final nav = GoRouter.of(context);
-                    final repo = ref.read(studentRepositoryProvider);
-                    await repo.deleteStudent(student.id);
-                    ref.invalidate(studentsWithStatusProvider);
-                    if (mounted) nav.go('/students');
+                    if (isAdmin) {
+                      final nav = GoRouter.of(context);
+                      final repo = ref.read(studentRepositoryProvider);
+                      await repo.deleteStudent(student.id);
+                      ref.invalidate(studentsWithStatusProvider);
+                      if (mounted) nav.go('/students');
+                    } else {
+                      await supabase.from('application_changes').insert({
+                        'student_id': student.id,
+                        'type': 'delete_student',
+                        'status': 'pending',
+                        'changes': {
+                          'student_name': '${student.nickName ?? student.firstName} ${student.lastName}',
+                          'enrollments_count': enrollments.length,
+                          'attendance_count': attendance.length,
+                        },
+                        'submitted_by': user?.id,
+                        'nickname': student.nickName,
+                        'first_name': student.firstName,
+                        'last_name': student.lastName,
+                      });
+                      await supabase.from('notifications').insert({
+                        'student_id': student.id,
+                        'type': 'delete_request',
+                        'payload': {
+                          'student_name': student.nickName ?? student.firstName,
+                        },
+                      });
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('requestSubmitted'.tr()),
+                            backgroundColor: AppColors.success,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.danger,
+                    backgroundColor: isAdmin ? AppColors.danger : AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -562,7 +598,8 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
                           BorderRadius.circular(AppTheme.radiusLg),
                     ),
                   ),
-                  child: Text('delete'.tr(),
+                  child: Text(
+                      isAdmin ? 'delete'.tr() : 'sendRequest'.tr(),
                       style: const TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ),
@@ -2141,6 +2178,7 @@ class _AddCourseSheetState extends State<_AddCourseSheet> {
   String? _selectedCourseId;
   Map<String, List<String>> _selectedDays = {};
   int _selectedHours = 0;
+  int? _remainingHours;
   XFile? _receipt;
   String? _error;
   bool _saving = false;
@@ -2199,12 +2237,16 @@ class _AddCourseSheetState extends State<_AddCourseSheet> {
     try {
       final repo = ApplicationRepository();
       final urls = await repo.uploadReceipts([_receipt!]);
+      final initialUsed = _remainingHours != null && _remainingHours! >= 0
+          ? (_selectedHours - _remainingHours!).clamp(0, _selectedHours)
+          : 0;
       await repo.submitChangeRequest(
         studentId: widget.studentId,
         type: 'edit',
         changes: {
           'course_changes': {_selectedCourseId!: _selectedDays},
           'course_limits': {_selectedCourseId!: _selectedHours},
+          if (initialUsed > 0) 'initial_used_hours': {_selectedCourseId!: initialUsed},
           'receipts': urls,
         },
         receiptUrls: urls,
@@ -2453,6 +2495,32 @@ class _AddCourseSheetState extends State<_AddCourseSheet> {
                           ),
                         );
                       }).toList(),
+                    ),
+                  ],
+
+                  // Remaining hours (optional)
+                  if (_selectedHours > 0) ...[
+                    const SizedBox(height: 16),
+                    Text('remainingHours'.tr(),
+                        style: AppTextStyles.bodyBoldSm
+                            .copyWith(color: AppColors.textSecondary)),
+                    const SizedBox(height: 4),
+                    Text('remainingHoursHint'.tr(),
+                        style: AppTextStyles.bodyXs
+                            .copyWith(color: AppColors.textMuted)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        hintText: '0',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 14),
+                      ),
+                      onChanged: (v) => setState(() =>
+                          _remainingHours = int.tryParse(v)),
                     ),
                   ],
 
