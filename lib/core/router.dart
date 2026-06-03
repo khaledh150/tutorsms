@@ -383,6 +383,7 @@ class _MainShell extends ConsumerWidget {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         indicatorColor: AppColors.primary.withValues(alpha: 0.12),
         onDestinationSelected: (i) {
           HapticFeedback.selectionClick();

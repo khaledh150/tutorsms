@@ -1285,7 +1285,7 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
               ),
               const SizedBox(height: 12),
               TextButton(
-                onPressed: () => context.go('/'),
+                onPressed: () => context.go('/dashboard'),
                 child: Text('backToHome'.tr()),
               ),
             ],
