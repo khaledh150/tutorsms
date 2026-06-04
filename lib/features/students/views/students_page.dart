@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/empty_state.dart';
 import '../models/student_model.dart';
 import '../providers/student_provider.dart';
 
@@ -236,14 +237,18 @@ class _StudentsPageState extends ConsumerState<StudentsPage> {
   }
 
   Widget _buildEmpty() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Text(
-          'noStudentsFound'.tr(),
-          style: AppTextStyles.bodyLg.copyWith(color: AppColors.textMuted),
+    final isSearching = _search.trim().isNotEmpty;
+    return ListView(
+      children: [
+        EmptyState(
+          icon: isSearching ? '🔍' : '👩‍🎓',
+          title: isSearching ? 'noStudentsFound'.tr() : 'noStudentsYet'.tr(),
+          subtitle: isSearching ? null : 'noStudentsHint'.tr(),
+          actionLabel: isSearching ? null : 'addNewStudent'.tr(),
+          onAction: isSearching ? null : () => context.go('/admissions?mode=new'),
+          iconColor: AppColors.primary,
         ),
-      ),
+      ],
     );
   }
 
@@ -459,8 +464,6 @@ class _StudentCard extends StatelessWidget {
                 student.photoUrl!,
                 width: 40,
                 height: 40,
-                cacheWidth: 80,
-                cacheHeight: 80,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => _initialText(),
               )

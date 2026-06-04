@@ -249,6 +249,11 @@ class _HomePageState extends ConsumerState<HomePage>
                       index: 1,
                       child: _buildTakeAttendanceButton(context),
                     ),
+                    _buildOnboardingChecklist(
+                      hasCourses: courseGroups.isNotEmpty,
+                      hasStudents: students.isNotEmpty,
+                      hasCheckin: todayAttendance.isNotEmpty || renewalStudents.isNotEmpty,
+                    ),
                     const SizedBox(height: 24),
                     _buildStaggered(
                       index: 2,
@@ -282,6 +287,85 @@ class _HomePageState extends ConsumerState<HomePage>
           ],
         ),
       ),
+      ),
+    );
+  }
+
+  Widget _buildOnboardingChecklist({
+    required bool hasCourses,
+    required bool hasStudents,
+    required bool hasCheckin,
+  }) {
+    final items = [
+      (hasCourses, 'setupAddCourses'.tr(), Icons.menu_book_rounded, '/courses'),
+      (hasStudents, 'setupAddStudents'.tr(), Icons.people_rounded, '/admissions?mode=new'),
+      (hasCheckin, 'setupFirstCheckin'.tr(), Icons.check_circle_rounded, '/attendance'),
+    ];
+    final done = items.where((i) => i.$1).length;
+    if (done >= items.length) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppTheme.radius2xl),
+          border: Border.all(color: AppColors.borderPurple),
+          boxShadow: const [BoxShadow(offset: Offset(0, 2), blurRadius: 8, color: Color(0x08000000))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('setupChecklist'.tr(), style: AppTextStyles.bodyBoldSm.copyWith(color: AppColors.primary)),
+                const Spacer(),
+                Text('$done/${items.length}', style: AppTextStyles.bodyBoldSm.copyWith(color: AppColors.primary)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: done / items.length,
+                minHeight: 6,
+                backgroundColor: AppColors.bgSurface,
+                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+              ),
+            ),
+            const SizedBox(height: 12),
+            for (final item in items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: GestureDetector(
+                  onTap: item.$1 ? null : () => context.go(item.$4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        item.$1 ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                        size: 20,
+                        color: item.$1 ? AppColors.success : AppColors.textMuted,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          item.$2,
+                          style: AppTextStyles.bodySm.copyWith(
+                            color: item.$1 ? AppColors.success : AppColors.textPrimary,
+                            decoration: item.$1 ? TextDecoration.lineThrough : null,
+                            fontWeight: item.$1 ? FontWeight.w400 : FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (!item.$1)
+                        Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

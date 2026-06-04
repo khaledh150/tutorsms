@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../shared/widgets/empty_state.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
@@ -252,26 +253,11 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
   }
 
   Widget _buildEmpty() {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppTheme.radius3xl),
-          boxShadow: const [
-            BoxShadow(
-                offset: Offset(0, 1),
-                blurRadius: 4,
-                color: Color(0x08000000)),
-          ],
-        ),
-        child: Text(
-          'noClassesScheduled'.tr(),
-          style: AppTextStyles.displaySm.copyWith(color: AppColors.textMuted),
-          textAlign: TextAlign.center,
-        ),
-      ),
+    return EmptyState(
+      icon: '📋',
+      title: 'noCoursesToday'.tr(),
+      subtitle: 'noCoursesTodayHint'.tr(),
+      iconColor: AppColors.success,
     );
   }
 

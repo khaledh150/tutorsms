@@ -1,17 +1,20 @@
 import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/supabase_client.dart';
+import '../../../shared/services/offline_checkin_queue.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/attendance_row.dart';
+import '../models/course_group.dart';
 import '../models/student_for_grid.dart';
 import '../providers/attendance_provider.dart';
 
@@ -32,8 +35,38 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
   List<Map<String, dynamic>> _walkInResults = [];
   Timer? _debounce;
   final _walkInController = TextEditingController();
+  bool _showTooltip = false;
+
+  bool _soundEnabled = true;
 
   String get courseId => widget.courseId;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFirstVisit();
+    _loadSoundPref();
+  }
+
+  Future<void> _loadSoundPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) setState(() => _soundEnabled = prefs.getBool('checkin_sound') ?? true);
+  }
+
+  void _playCheckinFeedback() {
+    HapticFeedback.mediumImpact();
+    if (_soundEnabled) {
+      SystemSound.play(SystemSoundType.click);
+    }
+  }
+
+  Future<void> _checkFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('checkin_tooltip_shown') != true) {
+      if (mounted) setState(() => _showTooltip = true);
+      await prefs.setBool('checkin_tooltip_shown', true);
+    }
+  }
 
   @override
   void dispose() {
@@ -74,12 +107,15 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
 
     return Scaffold(
       backgroundColor: AppColors.bgMain,
-      body: Column(
+      body: Stack(
         children: [
-          _buildHeader(courseName, checkedCount, students.length,
-              uncheckedCount, rows),
-          if (_scanResult != null) _buildScanBanner(),
-          if (_walkInOpen) _buildWalkInSearch(rows),
+          Column(
+            children: [
+              _buildHeader(courseName, checkedCount, students.length,
+                  uncheckedCount, rows),
+              _buildCourseSwitcher(groups),
+              if (_scanResult != null) _buildScanBanner(),
+              if (_walkInOpen) _buildWalkInSearch(rows),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
@@ -98,7 +134,75 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
                     ),
             ),
           ),
+          ],
+          ),
+          if (_showTooltip)
+            Positioned(
+              bottom: 24, left: 20, right: 20,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(AppTheme.radius2xl),
+                color: AppColors.primary,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.touch_app_rounded, color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'checkinTooltip'.tr(),
+                          style: AppTextStyles.bodySm.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => setState(() => _showTooltip = false),
+                        child: Text('gotIt'.tr(), style: AppTextStyles.bodyBoldSm.copyWith(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCourseSwitcher(List<CourseGroup> groups) {
+    if (groups.length <= 1) return const SizedBox.shrink();
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        itemCount: groups.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final g = groups[i];
+          final isCurrent = g.courseId == courseId;
+          return GestureDetector(
+            onTap: isCurrent ? null : () => context.go('/attendance/${g.courseId}'),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: isCurrent ? AppColors.primary : Colors.white,
+                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                border: Border.all(
+                  color: isCurrent ? AppColors.primary : AppColors.borderLight,
+                ),
+              ),
+              child: Text(
+                g.courseName,
+                style: AppTextStyles.bodyXs.copyWith(
+                  color: isCurrent ? Colors.white : AppColors.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -324,7 +428,7 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
       ref.invalidate(courseAttendanceProvider(courseId));
       ref.invalidate(allTimeHoursProvider(courseId));
       ref.invalidate(courseGroupsProvider);
-      HapticFeedback.mediumImpact();
+      _playCheckinFeedback();
       _showResult('$name — ${'checkedInMsg'.tr()}', true);
       setState(() {
         _walkInOpen = false;
@@ -469,7 +573,7 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
         _showOverlimitDialog(stu, totalUsed);
         return;
       }
-      _showHourPicker(stu);
+      _quickCheckIn(stu);
     } else {
       _cancelCheckIn(stu, rows);
     }
@@ -508,6 +612,76 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
     );
   }
 
+  Future<void> _quickCheckIn(StudentForGrid stu) async {
+    final key = '${stu.studentId}|$courseId';
+    setState(() => _busyKey = key);
+
+    final user = ref.read(authProvider).valueOrNull;
+    if (user == null) {
+      setState(() => _busyKey = null);
+      return;
+    }
+
+    try {
+      final repo = ref.read(attendanceRepositoryProvider);
+      final result = await repo.checkIn(
+        studentId: stu.studentId,
+        courseId: courseId,
+        approverId: user.id,
+      );
+      ref.invalidate(courseAttendanceProvider(courseId));
+      ref.invalidate(allTimeHoursProvider(courseId));
+      ref.invalidate(courseGroupsProvider);
+      _playCheckinFeedback();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${stu.displayName} — ${'checkedIn'.tr()}'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'undoCheckin'.tr(),
+              textColor: Colors.white,
+              onPressed: () async {
+                await repo.cancelAttendance(rowId: result.id, userId: user.id);
+                ref.invalidate(courseAttendanceProvider(courseId));
+                ref.invalidate(allTimeHoursProvider(courseId));
+                ref.invalidate(courseGroupsProvider);
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      final isNetwork = e.toString().contains('SocketException') ||
+          e.toString().contains('Connection') ||
+          e.toString().contains('timeout');
+      if (isNetwork) {
+        await OfflineCheckinQueue.instance.enqueue(
+          studentId: stu.studentId,
+          courseId: courseId,
+          approverId: user.id,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${stu.displayName} — ${'queuedOffline'.tr()}'),
+              backgroundColor: AppColors.warning,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        _showResult('Error: $e', false);
+      }
+    } finally {
+      setState(() => _busyKey = null);
+    }
+  }
+
   void _showHourPicker(StudentForGrid stu) {
     showModalBottomSheet(
       context: context,
@@ -542,7 +716,7 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
       ref.invalidate(courseAttendanceProvider(courseId));
       ref.invalidate(allTimeHoursProvider(courseId));
       ref.invalidate(courseGroupsProvider);
-      HapticFeedback.mediumImpact();
+      _playCheckinFeedback();
       _showResult(
         '${stu.displayName} — ${hours}h ${'checkedIn'.tr()}',
         true,
@@ -631,7 +805,7 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
       ref.invalidate(courseAttendanceProvider(courseId));
       ref.invalidate(allTimeHoursProvider(courseId));
       ref.invalidate(courseGroupsProvider);
-      HapticFeedback.mediumImpact();
+      _playCheckinFeedback();
       _showResult(
         'checkedInBulk'.tr(namedArgs: {'count': unchecked.length.toString()}),
         true,

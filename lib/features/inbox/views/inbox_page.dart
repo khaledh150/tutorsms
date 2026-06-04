@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/empty_state.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
@@ -52,6 +53,21 @@ class InboxPage extends ConsumerWidget {
                                   fontWeight: FontWeight.w700)),
                         ),
                       ],
+                      const Spacer(),
+                      if (totalPending > 1)
+                        SizedBox(
+                          height: 32,
+                          child: FilledButton.icon(
+                            onPressed: () => _approveAll(context, ref, pendingApps.valueOrNull ?? [], pendingChanges.valueOrNull ?? []),
+                            icon: const Icon(Icons.done_all_rounded, size: 16),
+                            label: Text('approveAll'.tr()),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.success,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              textStyle: AppTextStyles.bodyXs.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -163,18 +179,11 @@ class InboxPage extends ConsumerWidget {
                   !pendingChanges.isLoading)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.checklist_rounded,
-                            size: 64, color: AppColors.primaryLight),
-                        const SizedBox(height: 16),
-                        Text('allCaughtUpApprovals'.tr(),
-                            style: AppTextStyles.bodySemiBoldBase
-                                .copyWith(color: AppColors.textSecondary)),
-                      ],
-                    ),
+                  child: EmptyState(
+                    icon: '✅',
+                    title: 'noPendingItems'.tr(),
+                    subtitle: 'noPendingHint'.tr(),
+                    iconColor: AppColors.success,
                   ),
                 ),
 
@@ -749,6 +758,35 @@ void _confirmAction(
         ),
       ],
     ),
+  );
+}
+
+void _approveAll(
+  BuildContext context,
+  WidgetRef ref,
+  List<Application> apps,
+  List<ApplicationChange> changes,
+) {
+  final appCount = apps.length;
+  final changeCount = changes.length;
+  final total = appCount + changeCount;
+
+  _confirmAction(
+    context,
+    ref,
+    message: 'approveAllConfirm'.tr(namedArgs: {'count': '$total'}),
+    action: () async {
+      final repo = ref.read(applicationRepositoryProvider);
+      if (appCount > 0) {
+        await repo.approveApplications(apps.map((a) => a.id).toList());
+      }
+      if (changeCount > 0) {
+        await repo.approveChanges(changes.map((c) => c.id).toList());
+      }
+      ref.invalidate(pendingApplicationsProvider);
+      ref.invalidate(pendingChangesProvider);
+      ref.invalidate(pendingReviewCountProvider);
+    },
   );
 }
 

@@ -185,8 +185,6 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
                                 student.photoUrl!,
                                 width: 64,
                                 height: 64,
-                                cacheWidth: 128,
-                                cacheHeight: 128,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, _, _) =>
                                     _avatarInitial(student),

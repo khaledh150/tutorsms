@@ -42,6 +42,7 @@ class DashboardRepository {
           .select('id,student_id,course_id,attended_at_ts,approved_by,courses(name)')
           .gte('attended_at_ts', today)
           .not('approved_by', 'is', null)
+          .isFilter('cancelled_by', null)
           .order('attended_at_ts', ascending: false)
           .limit(500);
       return (res as List).cast<Map<String, dynamic>>();

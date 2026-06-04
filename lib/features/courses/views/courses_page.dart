@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/empty_state.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/course_model.dart';
 import '../providers/course_provider.dart';
@@ -65,18 +66,29 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
                   onRefresh: () async {
                     ref.invalidate(coursesProvider);
                   },
-                  child: _tab == 'check'
-                      ? _CheckTab(
-                          courses: courses,
-                          courseId: _courseId,
-                          onCourseChanged: (id) =>
-                              setState(() => _courseId = id),
-                        )
-                      : _ManageTab(
-                          courses: courses,
-                          isLoading: isLoading,
-                          isAdmin: isAdmin,
-                        ),
+                  child: courses.isEmpty && !isLoading
+                      ? ListView(children: [
+                          EmptyState(
+                            icon: '📚',
+                            title: 'noCoursesYet'.tr(),
+                            subtitle: 'noCoursesHint'.tr(),
+                            actionLabel: isAdmin ? 'addFirstCourse'.tr() : null,
+                            onAction: isAdmin ? () => setState(() => _tab = 'manage') : null,
+                            iconColor: AppColors.primary,
+                          ),
+                        ])
+                      : _tab == 'check'
+                          ? _CheckTab(
+                              courses: courses,
+                              courseId: _courseId,
+                              onCourseChanged: (id) =>
+                                  setState(() => _courseId = id),
+                            )
+                          : _ManageTab(
+                              courses: courses,
+                              isLoading: isLoading,
+                              isAdmin: isAdmin,
+                            ),
                 ),
               ),
             ],

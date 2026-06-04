@@ -321,6 +321,7 @@ class _AnimatedTabIconState extends State<_AnimatedTabIcon>
 class _MainShell extends ConsumerWidget {
   const _MainShell({required this.child});
   final Widget child;
+  static DateTime? _lastBackPress;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -363,8 +364,27 @@ class _MainShell extends ConsumerWidget {
       }
     }
 
-    return Scaffold(
-      body: Stack(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        final now = DateTime.now();
+        if (_lastBackPress != null && now.difference(_lastBackPress!).inSeconds < 2) {
+          SystemNavigator.pop();
+          return;
+        }
+        _lastBackPress = now;
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('pressBackAgain'.tr()),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+      child: Scaffold(
+        body: Stack(
         children: [
           SafeArea(
             bottom: false,
@@ -431,6 +451,7 @@ class _MainShell extends ConsumerWidget {
               label: tabKeys[i].tr(),
             ),
         ],
+      ),
       ),
     );
   }

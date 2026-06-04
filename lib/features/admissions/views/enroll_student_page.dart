@@ -339,11 +339,27 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
     final coursesAsync = ref.watch(coursesProvider);
     final courses = coursesAsync.valueOrNull ?? [];
 
-    return Scaffold(
-      backgroundColor: AppColors.bgMain,
-      body: _submitted
-          ? _buildSuccess()
-          : Column(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_submitted) {
+          context.go('/dashboard');
+        } else if (_step > 1) {
+          _prevStep();
+        } else {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          } else {
+            context.go('/dashboard');
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.bgMain,
+        body: _submitted
+            ? _buildSuccess()
+            : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
@@ -351,7 +367,13 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
                   child: Row(
                     children: [
                       GestureDetector(
-                        onTap: () => context.pop(),
+                        onTap: () {
+                          if (Navigator.of(context).canPop()) {
+                            context.pop();
+                          } else {
+                            context.go('/dashboard');
+                          }
+                        },
                         child: const Icon(Icons.arrow_back_rounded,
                             color: AppColors.textPrimary, size: 24),
                       ),
@@ -396,6 +418,7 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
                 _buildNavButtons(courses),
               ],
             ),
+      ),
     );
   }
 

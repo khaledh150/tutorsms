@@ -170,6 +170,11 @@ class MorePage extends ConsumerWidget {
               ),
             ),
 
+            const SizedBox(height: 12),
+
+            // Sound toggle
+            const _SoundToggle(),
+
             const SizedBox(height: 24),
 
             // Logout
@@ -349,6 +354,74 @@ class _LanguageSwitcherState extends State<_LanguageSwitcher> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SoundToggle extends StatefulWidget {
+  const _SoundToggle();
+
+  @override
+  State<_SoundToggle> createState() => _SoundToggleState();
+}
+
+class _SoundToggleState extends State<_SoundToggle> {
+  bool _enabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) setState(() => _enabled = prefs.getBool('checkin_sound') ?? true);
+  }
+
+  Future<void> _toggle(bool value) async {
+    setState(() => _enabled = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('checkin_sound', value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.success,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            ),
+            child: const Icon(Icons.volume_up_rounded, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('checkinSound'.tr(), style: AppTextStyles.bodySemiBoldBase),
+                Text('checkinSoundHint'.tr(), style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted)),
+              ],
+            ),
+          ),
+          Switch(
+            value: _enabled,
+            onChanged: _toggle,
+            activeTrackColor: AppColors.success,
+          ),
+        ],
       ),
     );
   }
