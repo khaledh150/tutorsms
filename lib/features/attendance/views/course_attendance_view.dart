@@ -113,8 +113,6 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
             children: [
               _buildHeader(courseName, checkedCount, students.length,
                   uncheckedCount, rows),
-              _buildCourseSwitcher(groups),
-              if (_scanResult != null) _buildScanBanner(),
               if (_walkInOpen) _buildWalkInSearch(rows),
           Expanded(
             child: RefreshIndicator(
@@ -816,12 +814,16 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
   }
 
   void _showResult(String message, bool success) {
-    setState(() {
-      _scanResult = _ScanResult(message: message, isSuccess: success);
-    });
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) setState(() => _scanResult = null);
-    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
+        backgroundColor: success ? AppColors.success : AppColors.danger,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 }
 
