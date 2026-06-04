@@ -247,11 +247,11 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
           });
         }
 
-        final remaining = _hoursRemaining[cid];
+        final hoursUsed = _hoursRemaining[cid];
         final initialUsed = widget.existingMode &&
-                remaining != null &&
-                remaining >= 0
-            ? (hrs - remaining).clamp(0, hrs)
+                hoursUsed != null &&
+                hoursUsed > 0
+            ? hoursUsed.clamp(0, hrs)
             : 0;
 
         enrollmentRows.add({

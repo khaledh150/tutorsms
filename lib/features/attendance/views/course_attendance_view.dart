@@ -573,7 +573,7 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
         _showOverlimitDialog(stu, totalUsed);
         return;
       }
-      _quickCheckIn(stu);
+      _showHourPicker(stu);
     } else {
       _cancelCheckIn(stu, rows);
     }

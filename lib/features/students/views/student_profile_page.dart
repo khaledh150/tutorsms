@@ -2264,8 +2264,8 @@ class _AddCourseSheetState extends ConsumerState<_AddCourseSheet> {
       final user = ref.read(authProvider).valueOrNull;
       final isAdmin = user?.isAdmin ?? false;
       final urls = await repo.uploadReceipts([_receipt!]);
-      final initialUsed = _remainingHours != null && _remainingHours! >= 0
-          ? (_selectedHours - _remainingHours!).clamp(0, _selectedHours)
+      final initialUsed = _remainingHours != null && _remainingHours! > 0
+          ? _remainingHours!.clamp(0, _selectedHours)
           : 0;
 
       if (isAdmin) {
