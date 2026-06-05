@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
@@ -56,7 +57,8 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
   void _playCheckinFeedback() {
     HapticFeedback.mediumImpact();
     if (_soundEnabled) {
-      SystemSound.play(SystemSoundType.click);
+      final player = AudioPlayer();
+      player.play(AssetSource('sounds/check_soundeffect.mp3'));
     }
   }
 
@@ -245,28 +247,6 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
               ],
             ),
           ),
-          if (uncheckedCount > 0)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilledButton(
-                onPressed: () => _bulkCheckIn(rows),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                  ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'checkInAll'.tr(namedArgs: {'count': '$uncheckedCount'}),
-                  style: AppTextStyles.bodyXs.copyWith(fontWeight: FontWeight.w700)
-                      .copyWith(color: Colors.white, fontSize: 11),
-                ),
-              ),
-            ),
           IconButton(
             onPressed: () {
               setState(() {
@@ -584,11 +564,7 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
       builder: (ctx) => AlertDialog(
         title: Text('overlimitTitle'.tr(), style: AppTextStyles.displaySm),
         content: Text(
-          'overlimitConfirm'.tr(namedArgs: {
-            'name': name,
-            'used': totalUsed.toString(),
-            'purchased': stu.purchasedHours.toString(),
-          }),
+          '$name — $totalUsed/${stu.purchasedHours} ${'hrs'.tr()}. ${'continueCheckIn'.tr()}?',
           style: AppTextStyles.bodyBase,
         ),
         actions: [
@@ -759,10 +735,7 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
 
       HapticFeedback.lightImpact();
       _showResult(
-        'uncheckedStudent'.tr(namedArgs: {
-          'first': stu.firstName,
-          'last': stu.lastName,
-        }),
+        '${stu.displayName} — ${'unchecked'.tr()}',
         false,
       );
     } catch (e) {
@@ -805,7 +778,7 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
       ref.invalidate(courseGroupsProvider);
       _playCheckinFeedback();
       _showResult(
-        'checkedInBulk'.tr(namedArgs: {'count': unchecked.length.toString()}),
+        '${unchecked.length} ${'checkedIn'.tr()}',
         true,
       );
     } catch (e) {
@@ -818,10 +791,11 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
+        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600), textAlign: TextAlign.center),
         backgroundColor: success ? AppColors.success : AppColors.danger,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
+        width: MediaQuery.sizeOf(context).width * 0.8,
       ),
     );
   }

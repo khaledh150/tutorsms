@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/supabase_client.dart';
 import '../../admissions/providers/application_provider.dart';
 import '../../courses/providers/course_provider.dart';
 import '../../students/repositories/student_repository.dart';
@@ -19,6 +20,18 @@ final studentNameMapProvider =
 final courseNameMapProvider = Provider<Map<String, String>>((ref) {
   final courses = ref.watch(coursesProvider).valueOrNull ?? [];
   return {for (final c in courses) c.id: c.name};
+});
+
+final staffNameMapProvider = FutureProvider<Map<String, String>>((ref) async {
+  final res = await supabase.from('profiles').select('id,full_name,username').limit(200);
+  final map = <String, String>{};
+  for (final p in (res as List)) {
+    final id = p['id'] as String;
+    map[id] = (p['full_name'] as String?)?.isNotEmpty == true
+        ? p['full_name'] as String
+        : (p['username'] as String?) ?? id.substring(0, 8);
+  }
+  return map;
 });
 
 final totalPendingProvider = Provider<int>((ref) {

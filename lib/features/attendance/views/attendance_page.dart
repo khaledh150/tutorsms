@@ -322,6 +322,10 @@ class _CourseTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final logoSize = (screenWidth * 0.15).clamp(48.0, 96.0);
+    final fontSize = (logoSize * 0.44).clamp(20.0, 42.0);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -340,8 +344,8 @@ class _CourseTile extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 64,
-              height: 64,
+              width: logoSize,
+              height: logoSize,
               decoration: BoxDecoration(
                 color: color,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -359,7 +363,7 @@ class _CourseTile extends StatelessWidget {
                     ? group.courseName[0].toUpperCase()
                     : '?',
                 style: AppTextStyles.displayMd
-                    .copyWith(color: Colors.white, fontSize: 28),
+                    .copyWith(color: Colors.white, fontSize: fontSize),
               ),
             ),
             const SizedBox(height: 10),

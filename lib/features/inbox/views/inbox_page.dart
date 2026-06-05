@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../shared/widgets/empty_state.dart';
 import '../../../core/theme/app_colors.dart';
@@ -341,9 +342,7 @@ class _ApplicationCard extends ConsumerWidget {
 
                 const SizedBox(height: 8),
                 Text(
-                  'submittedDate'.tr(namedArgs: {
-                    'date': _formatDate(app.createdAt),
-                  }),
+                  '${'submitted'.tr()}: ${_formatDate(app.createdAt)}',
                   style: AppTextStyles.bodyXs
                       .copyWith(color: AppColors.textMuted),
                 ),
@@ -364,7 +363,7 @@ class _ApplicationCard extends ConsumerWidget {
                     onPressed: () => _confirmAction(
                       context,
                       ref,
-                      message: 'approveConfirm'.tr(namedArgs: {'count': '1'}),
+                      message: '${'approve'.tr()} ${app.displayName}?\n${app.courses.keys.map((k) => courseMap[k] ?? k).join(', ')}',
                       action: () async {
                         await ref
                             .read(applicationRepositoryProvider)
@@ -389,7 +388,8 @@ class _ApplicationCard extends ConsumerWidget {
                     onPressed: () => _confirmAction(
                       context,
                       ref,
-                      message: 'rejectConfirm'.tr(namedArgs: {'count': '1'}),
+                      message: '${'reject'.tr()} ${app.displayName}?',
+                      isReject: true,
                       action: () async {
                         await ref
                             .read(applicationRepositoryProvider)
@@ -470,20 +470,35 @@ class _ChangeCard extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(studentName,
-                              style: AppTextStyles.bodyBoldSm),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: typeConfig.bg,
-                              borderRadius: BorderRadius.circular(
-                                  AppTheme.radiusFull),
-                            ),
-                            child: Text(typeConfig.label,
-                                style: AppTextStyles.bodyXs.copyWith(
-                                    color: typeConfig.color,
-                                    fontWeight: FontWeight.w700)),
+                          GestureDetector(
+                            onTap: () => context.go('/students/${change.studentId}'),
+                            child: Text(studentName,
+                                style: AppTextStyles.bodyBoldSm.copyWith(
+                                    color: AppColors.primary,
+                                    decoration: TextDecoration.underline)),
+                          ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: typeConfig.bg,
+                                  borderRadius: BorderRadius.circular(
+                                      AppTheme.radiusFull),
+                                ),
+                                child: Text(typeConfig.label,
+                                    style: AppTextStyles.bodyXs.copyWith(
+                                        color: typeConfig.color,
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                              if (change.submittedBy != null) ...[
+                                const SizedBox(width: 6),
+                                Text('by ${_resolveUsername(ref, change.submittedBy!)}',
+                                    style: AppTextStyles.bodyXs.copyWith(
+                                        color: AppColors.textMuted, fontSize: 10)),
+                              ],
+                            ],
                           ),
                         ],
                       ),
@@ -560,9 +575,7 @@ class _ChangeCard extends ConsumerWidget {
 
                 const SizedBox(height: 8),
                 Text(
-                  'submittedDate'.tr(namedArgs: {
-                    'date': _formatDate(change.createdAt),
-                  }),
+                  '${'submitted'.tr()}: ${_formatDate(change.createdAt)}',
                   style: AppTextStyles.bodyXs
                       .copyWith(color: AppColors.textMuted),
                 ),
@@ -583,7 +596,7 @@ class _ChangeCard extends ConsumerWidget {
                     onPressed: () => _confirmAction(
                       context,
                       ref,
-                      message: 'approveConfirm'.tr(namedArgs: {'count': '1'}),
+                      message: '${'approve'.tr()} ${typeConfig.label} — $studentName?',
                       action: () async {
                         await ref
                             .read(applicationRepositoryProvider)
@@ -608,7 +621,8 @@ class _ChangeCard extends ConsumerWidget {
                     onPressed: () => _confirmAction(
                       context,
                       ref,
-                      message: 'rejectConfirm'.tr(namedArgs: {'count': '1'}),
+                      message: '${'reject'.tr()} ${typeConfig.label} — $studentName?',
+                      isReject: true,
                       action: () async {
                         await ref
                             .read(applicationRepositoryProvider)
@@ -725,36 +739,55 @@ void _confirmAction(
   WidgetRef ref, {
   required String message,
   required Future<void> Function() action,
+  bool isReject = false,
 }) {
   showDialog(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: Text('confirm'.tr(), style: AppTextStyles.bodyBoldBase),
-      content: Text(message, style: AppTextStyles.bodySm),
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+          borderRadius: BorderRadius.circular(AppTheme.radius2xl)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isReject ? Icons.close_rounded : Icons.check_circle_rounded,
+            size: 48,
+            color: isReject ? AppColors.danger : AppColors.success,
+          ),
+          const SizedBox(height: 12),
+          Text(message, style: AppTextStyles.bodySm, textAlign: TextAlign.center),
+        ],
+      ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: Text('cancel'.tr(),
-              style: AppTextStyles.bodyBoldSm
-                  .copyWith(color: AppColors.textSecondary)),
-        ),
-        ElevatedButton(
-          onPressed: () async {
-            Navigator.pop(ctx);
-            await action();
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('approved'.tr())),
-              );
-            }
-          },
-          style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary),
-          child: Text('confirm'.tr(),
-              style:
-                  AppTextStyles.bodyBoldSm.copyWith(color: Colors.white)),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+                ),
+                child: Text('cancel'.tr()),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await action();
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: isReject ? AppColors.danger : AppColors.success,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+                ),
+                child: Text(isReject ? 'reject'.tr() : 'approve'.tr(),
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
         ),
       ],
     ),
@@ -774,7 +807,7 @@ void _approveAll(
   _confirmAction(
     context,
     ref,
-    message: 'approveAllConfirm'.tr(namedArgs: {'count': '$total'}),
+    message: '${'approve'.tr()} $total ${'items'.tr()}?',
     action: () async {
       final repo = ref.read(applicationRepositoryProvider);
       if (appCount > 0) {
@@ -790,9 +823,15 @@ void _approveAll(
   );
 }
 
+String _resolveUsername(WidgetRef ref, String userId) {
+  final map = ref.watch(staffNameMapProvider).valueOrNull ?? {};
+  return map[userId] ?? '';
+}
+
 String _formatDate(String iso) {
   try {
-    final d = DateTime.parse(iso);
+    final utc = DateTime.parse(iso);
+    final d = utc.toLocal();
     return '${d.day}/${d.month}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   } catch (_) {
     return iso;

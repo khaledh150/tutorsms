@@ -50,6 +50,7 @@ dependencies:
   # Haptics
   vibration: ^2.0.0
   share_plus: ^12.0.2
+  audioplayers: ^6.7.1
 
 dev_dependencies:
   flutter_test:
@@ -78,3 +79,4 @@ flutter:
     - .env
     - assets/l10n/
     - assets/images/
+    - assets/sounds/

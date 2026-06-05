@@ -294,11 +294,11 @@ class ApplicationRepository {
         final fn =
             '${DateTime.now().millisecondsSinceEpoch}-${rng.nextInt(999999).toRadixString(36)}.$ext';
         final bytes = await f.readAsBytes();
-        final uploadRes = await supabase.storage
+        await supabase.storage
             .from('receipts')
             .uploadBinary(fn, bytes, fileOptions: const FileOptions(cacheControl: '3600'));
         final publicUrl =
-            supabase.storage.from('receipts').getPublicUrl(uploadRes);
+            supabase.storage.from('receipts').getPublicUrl(fn);
         urls.add(publicUrl);
       }
       return urls;

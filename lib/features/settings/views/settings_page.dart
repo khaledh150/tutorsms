@@ -6,7 +6,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../courses/providers/course_provider.dart';
 import '../../messaging/providers/messaging_provider.dart';
+import '../../students/providers/student_provider.dart';
 import '../../messaging/views/line_settings_sheet.dart' show LineSettingsInline;
 import '../repositories/settings_repository.dart';
 
@@ -129,15 +131,52 @@ class _SettingsPageState extends ConsumerState<SettingsPage>
         actionFilter: _logFilter.isEmpty ? null : _logFilter,
       );
 
-      final actorIds = entries
-          .map((e) => e['actor_id'] as String?)
-          .where((id) => id != null)
-          .cast<String>()
-          .toSet()
-          .toList();
-      final actorNames = await repo.fetchActorNames(actorIds);
+      final allUserIds = <String>{};
+      final allStudentIds = <String>{};
+      final allCourseIds = <String>{};
+      for (final e in entries) {
+        final aid = e['actor_id'] as String?;
+        if (aid != null) allUserIds.add(aid);
+        final meta = e['metadata'] as Map<String, dynamic>?;
+        if (meta != null) {
+          final sid = meta['student_id'] as String?;
+          final cid = meta['course_id'] as String?;
+          final cby = meta['cancelled_by'] as String?;
+          final sby = meta['submitted_by'] as String?;
+          if (sid != null) allStudentIds.add(sid);
+          if (cid != null) allCourseIds.add(cid);
+          if (cby != null) allUserIds.add(cby);
+          if (sby != null) allUserIds.add(sby);
+        }
+      }
+      final actorNames = await repo.fetchActorNames(allUserIds.toList());
+      final studentNames = allStudentIds.isNotEmpty
+          ? await ref.read(studentRepositoryProvider).fetchStudentNameMap(allStudentIds.toList())
+          : <String, String>{};
+      final courses = ref.read(coursesProvider).valueOrNull ?? [];
+      final courseNames = {for (final c in courses) c.id: c.name};
+
       for (final e in entries) {
         e['actor_name'] = actorNames[e['actor_id']] ?? 'System';
+        final meta = e['metadata'] as Map<String, dynamic>?;
+        if (meta != null) {
+          final sid = meta['student_id'] as String?;
+          final cid = meta['course_id'] as String?;
+          final cby = meta['cancelled_by'] as String?;
+          final sby = meta['submitted_by'] as String?;
+          if (sid != null) e['_student'] = studentNames[sid] ?? meta['nick_name'] ?? meta['first_name'];
+          if (cid != null) e['_course'] = courseNames[cid];
+          if (cby != null) e['_cancelledBy'] = actorNames[cby];
+          if (sby != null) e['_submittedBy'] = actorNames[sby];
+          if (meta['attended_at'] != null) {
+            final d = DateTime.tryParse(meta['attended_at'].toString())?.toLocal();
+            if (d != null) e['_time'] = '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+          }
+          if (meta['purchased_hours'] != null) e['_hours'] = meta['purchased_hours'];
+          if (meta['old_hours'] != null) e['_oldHours'] = meta['old_hours'];
+          if (meta['new_hours'] != null) e['_newHours'] = meta['new_hours'];
+          if (meta['name'] != null) e['_name'] = meta['name'];
+        }
       }
 
       setState(() {
@@ -810,7 +849,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage>
     final createdAt = entry['created_at'] as String? ?? '';
     final id = entry['id'] as String;
     final isExpanded = _expandedLogId == id;
-    final meta = entry['metadata'] as Map<String, dynamic>?;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -876,7 +914,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage>
               ),
             ),
           ),
-          if (isExpanded && meta != null)
+          if (isExpanded)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Container(
@@ -889,31 +927,42 @@ class _SettingsPageState extends ConsumerState<SettingsPage>
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: meta.entries
-                      .where((e) => e.value != null)
-                      .map((e) => Padding(
-                            padding:
-                                const EdgeInsets.only(bottom: 4),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 80,
-                                  child: Text(e.key,
-                                      style: AppTextStyles.bodyXs.copyWith(
-                                          color: AppColors.textMuted,
-                                          fontWeight: FontWeight.w600)),
-                                ),
-                                Expanded(
-                                  child: Text('${e.value}',
-                                      style: AppTextStyles.bodyXs),
-                                ),
-                              ],
-                            ),
-                          ))
-                      .toList(),
+                  children: [
+                    if (entry['_student'] != null)
+                      _logDetail('student'.tr(), entry['_student']),
+                    if (entry['_course'] != null)
+                      _logDetail('course'.tr(), entry['_course']),
+                    if (entry['_hours'] != null)
+                      _logDetail('hours'.tr(), '${entry['_hours']}'),
+                    if (entry['_oldHours'] != null && entry['_newHours'] != null)
+                      _logDetail('hours'.tr(), '${entry['_oldHours']} → ${entry['_newHours']}'),
+                    if (entry['_time'] != null)
+                      _logDetail('time'.tr(), entry['_time']),
+                    if (entry['_submittedBy'] != null)
+                      _logDetail('by'.tr(), entry['_submittedBy']),
+                    if (entry['_cancelledBy'] != null)
+                      _logDetail('cancelledBy'.tr(), entry['_cancelledBy']),
+                    if (entry['_name'] != null)
+                      _logDetail('name'.tr(), entry['_name']),
+                  ],
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _logDetail(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(label, style: AppTextStyles.bodyXs.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+          ),
+          Expanded(child: Text(value, style: AppTextStyles.bodyXs)),
         ],
       ),
     );

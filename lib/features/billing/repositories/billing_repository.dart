@@ -61,11 +61,11 @@ class BillingRepository {
       if (file != null) {
         final fn = '${DateTime.now().millisecondsSinceEpoch}-${file.name}';
         final bytes = await file.readAsBytes();
-        final uploaded = await supabase.storage
+        await supabase.storage
             .from('receipts')
             .uploadBinary(fn, bytes);
         final pubUrl =
-            supabase.storage.from('receipts').getPublicUrl(uploaded);
+            supabase.storage.from('receipts').getPublicUrl(fn);
         receiptUrl = pubUrl;
       }
 
@@ -96,10 +96,10 @@ class BillingRepository {
       if (file != null) {
         final fn = '${DateTime.now().millisecondsSinceEpoch}-${file.name}';
         final bytes = await file.readAsBytes();
-        final uploaded = await supabase.storage
+        await supabase.storage
             .from('receipts')
             .uploadBinary(fn, bytes);
-        receiptUrl = supabase.storage.from('receipts').getPublicUrl(uploaded);
+        receiptUrl = supabase.storage.from('receipts').getPublicUrl(fn);
       }
 
       await supabase.from('expenses').insert({
