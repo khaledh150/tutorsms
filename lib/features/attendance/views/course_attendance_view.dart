@@ -681,7 +681,7 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
 
     try {
       final repo = ref.read(attendanceRepositoryProvider);
-      await repo.checkInMultiHour(
+      final results = await repo.checkInMultiHour(
         studentId: stu.studentId,
         courseId: courseId,
         approverId: user.id,
@@ -691,10 +691,31 @@ class _CourseAttendanceViewState extends ConsumerState<CourseAttendanceView> {
       ref.invalidate(allTimeHoursProvider(courseId));
       ref.invalidate(courseGroupsProvider);
       _playCheckinFeedback();
-      _showResult(
-        '${stu.displayName} — ${hours}h ${'checkedIn'.tr()}',
-        true,
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${stu.displayName} — ${hours}h ${'checkedIn'.tr()}',
+                style: const TextStyle(fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            width: MediaQuery.sizeOf(context).width * 0.85,
+            action: SnackBarAction(
+              label: 'undoCheckin'.tr(),
+              textColor: Colors.white,
+              onPressed: () async {
+                for (final r in results) {
+                  await repo.cancelAttendance(rowId: r.id, userId: user.id);
+                }
+                ref.invalidate(courseAttendanceProvider(courseId));
+                ref.invalidate(allTimeHoursProvider(courseId));
+                ref.invalidate(courseGroupsProvider);
+              },
+            ),
+          ),
+        );
+      }
     } catch (e) {
       _showResult('Error: $e', false);
     } finally {

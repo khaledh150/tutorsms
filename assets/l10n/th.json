@@ -409,7 +409,7 @@
   "pleaseSelectDayTime": "กรุณาเลือกอย่างน้อย 1 วันและเวลา",
   "hoursMustBeOneAdm": "ชั่วโมงต้องไม่น้อยกว่า 1",
   "tapSlotsYouWant": "แตะช่วงเวลาที่ต้องการ:",
-  "howManyHours": "ต้องการกี่ชั่วโมงสำหรับ {{course}}?",
+  "howManyHours": "ต้องการเช็คอินกี่ชั่วโมง?",
   "paymentReceiptOptional": "ใบเสร็จชำระเงิน (ไม่จำเป็น)",
   "filesSelected": "เลือก {{count}} ไฟล์",
   "tapToAttachReceipt": "แตะเพื่อแนบใบเสร็จ",

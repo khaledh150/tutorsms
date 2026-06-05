@@ -410,7 +410,7 @@
   "pleaseSelectDayTime": "Please select at least one day & time",
   "hoursMustBeOneAdm": "Hours must be at least 1",
   "tapSlotsYouWant": "Tap the slots you want:",
-  "howManyHours": "How many hours for {{course}}?",
+  "howManyHours": "How many hours to check in?",
   "paymentReceiptOptional": "Payment Receipt (optional)",
   "filesSelected": "{{count}} file(s) selected",
   "tapToAttachReceipt": "Tap to attach receipt",

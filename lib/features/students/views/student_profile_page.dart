@@ -41,8 +41,35 @@ class StudentProfilePage extends ConsumerStatefulWidget {
 }
 
 class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
+  OverlayEntry? _photoOverlay;
+
+  void _showPhotoPreview(String url) {
+    _photoOverlay = OverlayEntry(
+      builder: (_) => Material(
+        color: Colors.black87,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.network(url, fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Icon(Icons.broken_image_rounded, color: Colors.white54, size: 64)),
+            ),
+          ),
+        ),
+      ),
+    );
+    Overlay.of(context).insert(_photoOverlay!);
+  }
+
+  void _hidePhotoPreview() {
+    _photoOverlay?.remove();
+    _photoOverlay = null;
+  }
+
   @override
   void dispose() {
+    _hidePhotoPreview();
     super.dispose();
   }
 
@@ -168,6 +195,13 @@ class _StudentProfilePageState extends ConsumerState<StudentProfilePage> {
             children: [
               GestureDetector(
                 onTap: () => _pickStudentPhoto(student.id),
+                onLongPressStart: student.photoUrl != null
+                    ? (_) => _showPhotoPreview(student.photoUrl!)
+                    : null,
+                onLongPressEnd: student.photoUrl != null
+                    ? (_) => _hidePhotoPreview()
+                    : null,
+                onLongPressCancel: _hidePhotoPreview,
                 child: Stack(
                   children: [
                     Hero(
