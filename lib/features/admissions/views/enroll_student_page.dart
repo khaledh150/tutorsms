@@ -188,7 +188,6 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
     if (result == null || result.files.isEmpty) return;
 
     for (final pf in result.files) {
-      if (pf.path == null) continue;
       if (pf.size > AppConstants.maxFileSize) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -197,7 +196,11 @@ class _EnrollStudentPageState extends ConsumerState<EnrollStudentPage> {
         }
         continue;
       }
-      _receipts.add(XFile(pf.path!));
+      if (pf.path != null) {
+        _receipts.add(XFile(pf.path!));
+      } else if (pf.bytes != null) {
+        _receipts.add(XFile.fromData(pf.bytes!, name: pf.name));
+      }
     }
     setState(() {});
   }

@@ -534,6 +534,8 @@ class _BillingPageState extends ConsumerState<BillingPage> {
                 }
                 if (pf.path != null) {
                   setState(() => _payFile = XFile(pf.path!));
+                } else if (pf.bytes != null) {
+                  setState(() => _payFile = XFile.fromData(pf.bytes!, name: pf.name));
                 }
               }
             },
@@ -785,6 +787,8 @@ class _BillingPageState extends ConsumerState<BillingPage> {
                 }
                 if (pf.path != null) {
                   setState(() => _expFile = XFile(pf.path!));
+                } else if (pf.bytes != null) {
+                  setState(() => _expFile = XFile.fromData(pf.bytes!, name: pf.name));
                 }
               }
             },
